@@ -107,7 +107,7 @@ export const HeroVisual: React.FC = () => {
                 className="text-xs"
                 style={{ color: 'var(--color-text-muted)' }}
               >
-                4-Surgery Mixed NHS/Private Practice (Illustrative)
+                3-Surgery Mixed NHS/Private Practice (Illustrative)
               </p>
             </div>
 
@@ -159,7 +159,7 @@ export const HeroVisual: React.FC = () => {
                       color: 'var(--color-accent)',
                     }}
                   >
-                    6.60
+                    7.10
                   </span>
                   <span
                     className="text-[10px] uppercase tracking-wider font-semibold"
@@ -197,7 +197,7 @@ export const HeroVisual: React.FC = () => {
                     className="text-[10px] font-mono px-1 rounded"
                     style={{ backgroundColor: '#ECE6DC', color: 'var(--color-text-primary)' }}
                   >
-                    6.60 YP
+                    7.10 YP
                   </span>
                 </div>
                 <div
@@ -207,7 +207,7 @@ export const HeroVisual: React.FC = () => {
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  £1,420,000
+                  £960,000
                 </div>
               </div>
 
@@ -239,7 +239,7 @@ export const HeroVisual: React.FC = () => {
                     color: 'var(--color-accent)',
                   }}
                 >
-                  £215,680 pa
+                  £135,120 pa
                 </div>
               </div>
             </div>
@@ -250,12 +250,12 @@ export const HeroVisual: React.FC = () => {
             className="pt-2.5 flex items-center justify-between text-xs"
             style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
           >
-            <span>MV2 (6-Mo Restricted): £1.14M</span>
+            <span>MV2 (6-Mo Restricted): £0.77M</span>
             <span
               className="font-semibold"
               style={{ color: 'var(--color-accent)' }}
             >
-              Passing Rent: £25,000 pa
+              Passing Rent: £18,000 pa
             </span>
           </div>
         </div>

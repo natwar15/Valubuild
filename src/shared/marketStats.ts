@@ -11,6 +11,15 @@
 
 export const MIN_CELL_SIZE = 5;
 
+/**
+ * Owner-submitted (pooled) data is held to a stricter rule than public listings:
+ * a cell needs at least POOL_MIN_CONTRIBUTORS distinct accounts, each account
+ * counts once, only a median is published (never p25/p75, which with a few
+ * planted accounts would pin one owner's figure), and that median is rounded and
+ * nudged by a small deterministic offset so it can't be solved back to one value.
+ */
+export const POOL_MIN_CONTRIBUTORS = 10;
+
 export const APP_REGIONS = [
   'London & South East',
   'Midlands',
@@ -265,6 +274,8 @@ export interface QuickValuationInput {
 
 /** Owner-reported value used as an extra comparable (from consented submissions). */
 export interface PooledComparable {
+  /** Opaque per-account key, server-side only. Each account counts once. */
+  contributorKey: string;
   region: AppRegion;
   type: PracticeType;
   surgeries: number;
@@ -275,7 +286,12 @@ export interface QuickValuationResult {
   practiceType: PracticeType;
   basis: string; // which comparable set was used
   comparablesUsed: number;
-  pooledComparablesUsed: number;
+  /**
+   * Median owner-reported value (% of fees) for the same comparable group, only when
+   * at least POOL_MIN_CONTRIBUTORS owners are in it. Rounded and offset like the pool
+   * summary. Shown alongside the listings range, never mixed into it.
+   */
+  ownerReportedMedianPctFees: number | null;
   goodwillPctFees: Distribution;
   goodwillLowGbp: number;
   goodwillMidGbp: number;
@@ -322,13 +338,16 @@ export function quickValuation(
     },
     { label: 'All UK practices', listings: usable, pooled },
   ];
-  const chosen =
-    tiers.find((t) => t.listings.length + (t.pooled.length >= MIN_CELL_SIZE ? t.pooled.length : 0) >= MIN_COMPARABLES) ||
-    tiers[tiers.length - 1];
+  const chosen = tiers.find((t) => t.listings.length >= MIN_COMPARABLES) || tiers[tiers.length - 1];
 
-  // Pooled owner data only counts once it clears the small-cell threshold.
-  const pooledValues = chosen.pooled.length >= MIN_CELL_SIZE ? chosen.pooled.map((p) => p.valuePctFees) : [];
-  const dist = distribution([...chosen.listings.map((r) => r.goodwillPctFees), ...pooledValues]);
+  // Pooled owner data never enters the published range (its quartiles could be
+  // pinned with planted accounts). It is reported as a separate, protected median.
+  const pooledByOwner = onePerContributor(chosen.pooled);
+  const ownerReportedMedianPctFees =
+    pooledByOwner.length >= POOL_MIN_CONTRIBUTORS
+      ? protectedMedian(`quick|${chosen.label}`, pooledByOwner.map((p) => p.valuePctFees), 5, 5)
+      : null;
+  const dist = distribution(chosen.listings.map((r) => r.goodwillPctFees));
   const pct = (v: number | null) => (v === null ? 0 : v / 100);
   const fees = Math.max(0, input.feesGbp);
 
@@ -364,7 +383,7 @@ export function quickValuation(
     practiceType: type,
     basis: chosen.label,
     comparablesUsed: chosen.listings.length,
-    pooledComparablesUsed: pooledValues.length,
+    ownerReportedMedianPctFees,
     goodwillPctFees: {
       n: dist.n,
       p25: dist.p25 === null ? null : round1(dist.p25),
@@ -384,6 +403,8 @@ export function quickValuation(
 // ---------------------------------------------------------------------------
 
 export interface PoolRecord {
+  /** Opaque per-account key, server-side only. Each account counts once per cell. */
+  contributorKey: string;
   region: AppRegion;
   type: PracticeType;
   surgeries: number;
@@ -394,14 +415,20 @@ export interface PoolRecord {
   estimatePctFees: number | null;
 }
 
+/** A pooled figure: median only. */
+export interface PoolFigure {
+  median: number;
+}
+
 export interface PoolCell {
   key: string;
   suppressed: boolean;
+  /** Distinct contributors, rounded down to the nearest 5. */
   n: number | null;
-  feesGbp: Distribution | null;
-  ownerMarginPct: Distribution | null;
-  nhsPct: Distribution | null;
-  reportedValuePctFees: Distribution | null;
+  feesGbp: PoolFigure | null;
+  ownerMarginPct: PoolFigure | null;
+  nhsPct: PoolFigure | null;
+  reportedValuePctFees: PoolFigure | null;
 }
 
 export interface PoolSummary {
@@ -412,19 +439,59 @@ export interface PoolSummary {
   byType: PoolCell[];
 }
 
+/** Keeps the first record for each contributor (callers pass newest first). */
+export function onePerContributor<T extends { contributorKey: string }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  return rows.filter((r) => (seen.has(r.contributorKey) ? false : (seen.add(r.contributorKey), true)));
+}
+
+/** FNV-1a, so the offset is stable for the same data (it can't be averaged away by repeat requests). */
+function hash32(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Median of values, moved by a deterministic offset in [-maxOffset, +maxOffset]
+ * derived from the cell and its exact contents, then rounded to `step`. Any change
+ * to the cell (such as one new contributor) re-draws the offset, so comparing two
+ * releases doesn't reveal the new value either.
+ */
+export function protectedMedian(cellKey: string, values: number[], maxOffset: number, step: number): number | null {
+  const d = distribution(values);
+  if (d.median === null) return null;
+  const sorted = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
+  const u = hash32(`${cellKey}|${sorted.join(',')}`) / 0xffffffff; // 0..1
+  const offset = (u * 2 - 1) * maxOffset;
+  return Math.round((d.median + offset) / step) * step;
+}
+
+function poolFigure(cellKey: string, values: Array<number | null>, maxOffset: number, step: number): PoolFigure | null {
+  const clean = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  if (clean.length < POOL_MIN_CONTRIBUTORS) return null;
+  const median = protectedMedian(cellKey, clean, maxOffset, step);
+  return median === null ? null : { median };
+}
+
 function buildPoolCell(key: string, rows: PoolRecord[]): PoolCell {
-  if (rows.length < MIN_CELL_SIZE) {
+  const owners = onePerContributor(rows);
+  if (owners.length < POOL_MIN_CONTRIBUTORS) {
     return { key, suppressed: true, n: null, feesGbp: null, ownerMarginPct: null, nhsPct: null, reportedValuePctFees: null };
   }
+  const medianFees = distribution(owners.map((r) => r.feesGbp)).median ?? 0;
   return {
     key,
     suppressed: false,
     // Counts are rounded down to the nearest 5 so small changes don't reveal a single new contributor.
-    n: Math.floor(rows.length / 5) * 5,
-    feesGbp: safeDistribution(rows.map((r) => r.feesGbp), roundTo(10000)),
-    ownerMarginPct: safeDistribution(rows.map((r) => r.ownerMarginPct), Math.round),
-    nhsPct: safeDistribution(rows.map((r) => r.nhsPct), (n) => roundTo(5)(n)),
-    reportedValuePctFees: safeDistribution(rows.map((r) => r.reportedValuePctFees), Math.round),
+    n: Math.floor(owners.length / 5) * 5,
+    feesGbp: poolFigure(`${key}|fees`, owners.map((r) => r.feesGbp), medianFees * 0.05, 10000),
+    ownerMarginPct: poolFigure(`${key}|margin`, owners.map((r) => r.ownerMarginPct), 2, 1),
+    nhsPct: poolFigure(`${key}|nhs`, owners.map((r) => r.nhsPct), 5, 5),
+    reportedValuePctFees: poolFigure(`${key}|value`, owners.map((r) => r.reportedValuePctFees), 5, 5),
   };
 }
 
@@ -437,7 +504,7 @@ export function summarisePool(rows: PoolRecord[]): PoolSummary {
   const byType = groupBy(rows, (r) => r.type);
   const overall = buildPoolCell('All', rows);
   return {
-    minCellSize: MIN_CELL_SIZE,
+    minCellSize: POOL_MIN_CONTRIBUTORS,
     contributors: overall.n,
     overall,
     byRegion: APP_REGIONS.map((k) => buildPoolCell(k, byRegion.get(k) || [])),

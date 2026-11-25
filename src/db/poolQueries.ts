@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { db } from './index.ts';
 import { practiceSubmissions, users, valuationReports } from './schema.ts';
 import { AppRegion, PooledComparable, PoolRecord, PracticeType } from '../shared/marketStats.ts';
@@ -61,6 +61,7 @@ export async function deleteUserAndData(uid: string) {
 export async function loadPoolRecords(): Promise<PoolRecord[]> {
   const subs = await db
     .select({
+      userId: practiceSubmissions.userId,
       region: practiceSubmissions.region,
       type: practiceSubmissions.practiceType,
       surgeries: practiceSubmissions.surgeries,
@@ -71,12 +72,14 @@ export async function loadPoolRecords(): Promise<PoolRecord[]> {
       estimateMidGbp: practiceSubmissions.estimateMidGbp,
     })
     .from(practiceSubmissions)
-    .where(eq(practiceSubmissions.shareConsent, true));
+    .where(and(eq(practiceSubmissions.shareConsent, true), isNotNull(practiceSubmissions.shareConsentVersion)))
+    .orderBy(desc(practiceSubmissions.updatedAt));
 
   // Detailed-intake reports shared with consent contribute their input figures
   // (fees, margin, NHS share). Their engine-derived values are not pooled.
   const reports = await db
     .select({
+      userId: valuationReports.userId,
       region: valuationReports.region,
       practiceType: valuationReports.practiceType,
       surgeries: valuationReports.surgeriesCount,
@@ -84,7 +87,9 @@ export async function loadPoolRecords(): Promise<PoolRecord[]> {
       marginPct: valuationReports.fmopMarginPercent,
     })
     .from(valuationReports)
-    .where(eq(valuationReports.isAnonymisedShared, true));
+    // Only reports with recorded, versioned consent. Older rows were shared by default.
+    .where(and(eq(valuationReports.isAnonymisedShared, true), isNotNull(valuationReports.shareConsentVersion)))
+    .orderBy(desc(valuationReports.updatedAt));
 
   const pct = (a: number | null, b: number) => (a && b > 0 ? (a / b) * 100 : null);
   const typeFromLabel = (t: string): PracticeType => {
@@ -97,6 +102,7 @@ export async function loadPoolRecords(): Promise<PoolRecord[]> {
 
   return [
     ...subs.map((s) => ({
+      contributorKey: `u${s.userId}`,
       region: s.region as AppRegion,
       type: s.type as PracticeType,
       surgeries: s.surgeries,
@@ -107,6 +113,7 @@ export async function loadPoolRecords(): Promise<PoolRecord[]> {
       estimatePctFees: pct(s.estimateMidGbp, s.feesGbp),
     })),
     ...reports.map((r) => ({
+      contributorKey: `u${r.userId}`,
       region: r.region as AppRegion,
       type: typeFromLabel(r.practiceType),
       surgeries: r.surgeries,
@@ -123,6 +130,7 @@ export async function loadPoolRecords(): Promise<PoolRecord[]> {
 export async function loadPooledComparables(): Promise<PooledComparable[]> {
   const rows = await db
     .select({
+      userId: practiceSubmissions.userId,
       region: practiceSubmissions.region,
       type: practiceSubmissions.practiceType,
       surgeries: practiceSubmissions.surgeries,
@@ -130,10 +138,12 @@ export async function loadPooledComparables(): Promise<PooledComparable[]> {
       reportedValueGbp: practiceSubmissions.reportedValueGbp,
     })
     .from(practiceSubmissions)
-    .where(eq(practiceSubmissions.shareConsent, true));
+    .where(and(eq(practiceSubmissions.shareConsent, true), isNotNull(practiceSubmissions.shareConsentVersion)))
+    .orderBy(desc(practiceSubmissions.updatedAt));
   return rows
     .filter((r) => r.reportedValueGbp && r.feesGbp > 0)
     .map((r) => ({
+      contributorKey: `u${r.userId}`,
       region: r.region as AppRegion,
       type: r.type as PracticeType,
       surgeries: r.surgeries,

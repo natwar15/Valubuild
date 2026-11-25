@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import {
   MIN_CELL_SIZE,
   ListingRecord,
+  POOL_MIN_CONTRIBUTORS,
   PoolRecord,
   distribution,
+  protectedMedian,
   practiceTypeFromMix,
   quickValuation,
   regionForPostcode,
@@ -61,17 +63,50 @@ test('filters narrow the listings and can suppress the overall cell', () => {
   assert.equal(summariseListings(rows, { regions: ['Wales'] }).overall.suppressed, true);
 });
 
-test('pool counts are rounded down to 5 and small cells hidden', () => {
-  const rec = (region: PoolRecord['region']): PoolRecord => ({
-    region, type: 'Private', surgeries: 3, feesGbp: 600000, ownerMarginPct: 30, nhsPct: 10,
-    reportedValuePctFees: 140, estimatePctFees: 130,
-  });
-  const rows = [...Array.from({ length: 7 }, () => rec('Midlands')), rec('Wales')];
+const poolRec = (key: string, region: PoolRecord['region'], value = 140): PoolRecord => ({
+  contributorKey: key, region, type: 'Private', surgeries: 3, feesGbp: 600000, ownerMarginPct: 30, nhsPct: 10,
+  reportedValuePctFees: value, estimatePctFees: 130,
+});
+
+test('pool needs 10 distinct owners, rounds counts down to 5 and publishes medians only', () => {
+  const rows = [
+    ...Array.from({ length: 12 }, (_, i) => poolRec(`u${i}`, 'Midlands')),
+    poolRec('w1', 'Wales'),
+  ];
   const s = summarisePool(rows);
-  assert.equal(s.contributors, 5);
-  assert.equal(s.byRegion.find((c) => c.key === 'Midlands')!.n, 5);
+  assert.equal(s.minCellSize, POOL_MIN_CONTRIBUTORS);
+  assert.equal(s.contributors, 10);
+  const mid = s.byRegion.find((c) => c.key === 'Midlands')!;
+  assert.equal(mid.n, 10);
+  assert.deepEqual(Object.keys(mid.reportedValuePctFees!), ['median']);
   assert.equal(s.byRegion.find((c) => c.key === 'Wales')!.suppressed, true);
-  assert.equal(summarisePool(rows.slice(0, 4)).contributors, null);
+  assert.equal(summarisePool(rows.slice(0, 9)).contributors, null);
+});
+
+test('one owner saving many valuations still counts once', () => {
+  const rows = Array.from({ length: 15 }, () => poolRec('same-owner', 'Midlands'));
+  assert.equal(summarisePool(rows).overall.suppressed, true);
+});
+
+test('planted accounts cannot pin one owner\'s value', () => {
+  // 9 planted accounts (4 very low, 5 very high) around one real owner at 173%.
+  const planted = [
+    ...Array.from({ length: 4 }, (_, i) => poolRec(`low${i}`, 'Wales', 20)),
+    ...Array.from({ length: 5 }, (_, i) => poolRec(`high${i}`, 'Wales', 400)),
+  ];
+  const victim = poolRec('victim', 'Wales', 173);
+  const cell = summarisePool([...planted, victim]).byRegion.find((c) => c.key === 'Wales')!;
+  // Only a median is published, so the attacker learns (victim + 400) / 2 at best,
+  // moved by up to 5 points and rounded to 5: the victim's figure is uncertain by about +/-15 points.
+  assert.equal(cell.reportedValuePctFees!.median % 5, 0);
+  assert.ok(!('p25' in cell.reportedValuePctFees!) && !('p75' in cell.reportedValuePctFees!));
+});
+
+test('protected median is stable for the same data and changes when data changes', () => {
+  const v = [100, 120, 130, 150, 160, 170, 180, 190, 200, 210];
+  const a = protectedMedian('k', v, 5, 5);
+  assert.equal(a, protectedMedian('k', [...v].reverse(), 5, 5));
+  assert.ok(Math.abs(a! - 165) <= 10);
 });
 
 test('postcode area maps to app region', () => {
@@ -105,15 +140,18 @@ test('quick valuation uses comparables and falls back to wider sets', () => {
   assert.ok(r.notes.some((n) => n.includes('associate-led')));
 });
 
-test('pooled comparables only count at or above the threshold', () => {
+test('pooled owner values are shown as a separate median and never move the listings range', () => {
   const rows = Array.from({ length: 10 }, () => listing({ region: 'Wales', type: 'Private', goodwillPctFees: 100 }));
   const input = { postcodeArea: 'CF', region: 'Wales' as const, feesGbp: 500000, nhsPct: 0, privatePct: 100, planPct: 0,
     surgeries: 3, tenure: 'Leasehold' as const, principalDaysPerWeek: 2 };
-  const pooled = (n: number) => Array.from({ length: n }, () => ({ region: 'Wales' as const, type: 'Private' as const, surgeries: 3, valuePctFees: 200 }));
-  assert.equal(quickValuation(input, rows, pooled(4)).pooledComparablesUsed, 0);
-  const r = quickValuation(input, rows, pooled(5));
-  assert.equal(r.pooledComparablesUsed, 5);
-  assert.ok(r.goodwillPctFees.p75! > 100);
+  const pooled = (n: number, sameOwner = false) =>
+    Array.from({ length: n }, (_, i) => ({ contributorKey: sameOwner ? 'x' : `u${i}`, region: 'Wales' as const, type: 'Private' as const, surgeries: 3, valuePctFees: 200 }));
+  assert.equal(quickValuation(input, rows, pooled(9)).ownerReportedMedianPctFees, null);
+  assert.equal(quickValuation(input, rows, pooled(20, true)).ownerReportedMedianPctFees, null);
+  const r = quickValuation(input, rows, pooled(10));
+  assert.ok(r.ownerReportedMedianPctFees !== null && Math.abs(r.ownerReportedMedianPctFees - 200) <= 10);
+  assert.equal(r.goodwillPctFees.p75, 100);
+  assert.equal(r.goodwillPctFees.median, 100);
 });
 
 test('CSV parser handles quotes and commas', () => {

@@ -162,10 +162,12 @@ async function startServer() {
       const ypMultiple = Number(body.ypMultiple) || 6.5;
       const mv1GoodwillGbp = Math.max(0, Number(body.mv1GoodwillGbp) || 0);
       const buyerReadinessScore = Math.max(0, Math.min(100, Number(body.buyerReadinessScore) || 50));
-      // Sharing needs consent: either given now (current notice version) or recorded earlier.
+      // Sharing needs consent to the current notice version, either given now or
+      // recorded earlier, and a verified email (so the pool can't be flooded).
       const consentNow = body.consentVersion === POOL_CONSENT_VERSION;
+      const priorConsent = user.poolConsentVersion === POOL_CONSENT_VERSION && Boolean(user.poolConsentAt);
       const isAnonymisedShared =
-        body.isAnonymisedShared === true && (consentNow || Boolean(user.poolConsentAt));
+        body.isAnonymisedShared === true && (consentNow || priorConsent) && req.user!.email_verified === true;
       if (isAnonymisedShared && consentNow) {
         await recordPoolConsent(user.id, POOL_CONSENT_VERSION);
       }
@@ -186,6 +188,7 @@ async function startServer() {
         mv1GoodwillGbp,
         buyerReadinessScore,
         isAnonymisedShared,
+        shareConsentVersion: isAnonymisedShared ? POOL_CONSENT_VERSION : null,
         intakeJson: typeof body.intakeJson === 'object' && body.intakeJson !== null ? body.intakeJson : {},
         aiPointersJson: Array.isArray(body.aiPointersJson) ? body.aiPointersJson : undefined,
         valuationDriversJson: Array.isArray(body.valuationDriversJson)
@@ -226,7 +229,19 @@ async function startServer() {
       if (isShared && req.body?.consentVersion !== POOL_CONSENT_VERSION) {
         return res.status(400).json({ error: 'Please read and accept the current pooling terms first.' });
       }
-      const updated = await toggleReportAnonymisedSharing(req.user!.uid, reportId, isShared);
+      if (isShared && req.user!.email_verified !== true) {
+        return res.status(403).json({ error: 'Verify your email address before adding your figures to the pool.' });
+      }
+      const updated = await toggleReportAnonymisedSharing(
+        req.user!.uid,
+        reportId,
+        isShared,
+        isShared ? POOL_CONSENT_VERSION : undefined
+      );
+      if (updated && isShared) {
+        const owner = await getOrCreateUser(req.user!.uid, req.user!.email || `${req.user!.uid}@valubuild.uk`, req.user!.name);
+        await recordPoolConsent(owner.id, POOL_CONSENT_VERSION);
+      }
       if (!updated) {
         return res.status(404).json({ error: 'Valuation report not found.' });
       }

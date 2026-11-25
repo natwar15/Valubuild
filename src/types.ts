@@ -34,7 +34,7 @@ export interface DentalIntakeData {
   // NHS Contract Breakdown (if NHS or Mixed)
   nhsAnnualValue: number; // £ Total NHS contract value
   udaRequirement: number; // Number of contracted UDAs
-  udaRate: number; // £ per UDA (e.g. £35.00, £38.00)
+  udaRate: number; // £ per UDA (e.g. £35.00)
   clawbackAmount: number; // £ Under-delivery clawback deduction if any
   // Private Breakdown
   privateFpiTurnover: number; // £ Private fee-per-item & elective cosmetic
