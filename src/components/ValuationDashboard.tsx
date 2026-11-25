@@ -172,7 +172,7 @@ export const ValuationDashboard: React.FC<ValuationDashboardProps> = ({
               className="text-2xl sm:text-3xl font-bold tracking-tight"
               style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-text-primary)' }}
             >
-              {intakeData.practiceName || 'Bridge House Dental Practice'}
+              {intakeData.practiceName || 'Your Dental Practice'}
             </h3>
             <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
               Classification: <strong>{intakeData.practiceType}</strong> · <strong>{intakeData.surgeriesCount} Surgeries</strong> · {report.location} · Tenure: <strong>{intakeData.tenure}</strong>
@@ -249,8 +249,8 @@ export const ValuationDashboard: React.FC<ValuationDashboardProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-[6px] bg-[#FAF8F4] border mb-6 text-xs" style={{ borderColor: 'var(--color-border)' }}>
           <div>
             <span className="text-gray-500 uppercase font-bold block mb-0.5">Location &amp; Postcode</span>
-            <span className="font-semibold text-gray-900 block">{intakeData.address || '29 Bondgate Green'}</span>
-            <span className="text-gray-600">{intakeData.postcode || 'HG4 1QW'} ({intakeData.region})</span>
+            <span className="font-semibold text-gray-900 block">{intakeData.address || 'Address not provided'}</span>
+            <span className="text-gray-600">{intakeData.postcode || 'Postcode not provided'} ({intakeData.region})</span>
           </div>
 
           <div>
