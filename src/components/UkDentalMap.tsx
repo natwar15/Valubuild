@@ -259,7 +259,7 @@ export const UkDentalMap: React.FC<UkDentalMapProps> = ({
               type="text"
               value={customTown}
               onChange={(e) => setCustomTown(e.target.value)}
-              placeholder="e.g., Northtown, Guildford, Harrogate, Solihull"
+              placeholder="e.g., Leeds, Guildford, Bristol, Solihull"
               className="w-full px-3 py-2.5 text-xs rounded-[4px] border bg-white text-[#26231E]"
               style={{ borderColor: 'var(--color-border)' }}
             />
