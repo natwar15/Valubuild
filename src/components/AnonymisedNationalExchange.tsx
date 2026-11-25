@@ -89,7 +89,7 @@ export const AnonymisedNationalExchange: React.FC<AnonymisedNationalExchangeProp
       });
       setFeedback(
         !report.isAnonymisedShared
-          ? `Report "${report.practiceName}" is now part of the anonymised pool. Its figures are only shown combined with at least 4 other practices.`
+          ? `Report "${report.practiceName}" is now part of the anonymised pool. Its figures are only shown as a median across at least 10 owners.`
           : `Report "${report.practiceName}" removed from the national anonymised pool (private only).`
       );
       await loadData();
@@ -108,7 +108,7 @@ export const AnonymisedNationalExchange: React.FC<AnonymisedNationalExchangeProp
             <div className="flex items-center gap-2 mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Anonymised, groups of 5+ only
+                Anonymised, groups of 10+ owners only
               </span>
               <span className="text-xs font-mono text-[#6B6459]">
                 {pool?.contributors ? `${pool.contributors}+ practices contributing` : 'Growing pool'}
@@ -118,7 +118,7 @@ export const AnonymisedNationalExchange: React.FC<AnonymisedNationalExchangeProp
               UK practice owner pool
             </h2>
             <p className="text-sm text-[#6B6459] mt-1 max-w-3xl">
-              Benchmarks built from figures practice owners have chosen to share. Individual practices are never shown: figures appear only for groups of at least 5, by region or practice type.
+              Benchmarks built from figures practice owners have chosen to share. Individual practices are never shown: figures appear only as medians for groups of at least 10 owners, by region or practice type.
             </p>
           </div>
 
