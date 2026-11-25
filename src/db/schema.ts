@@ -45,6 +45,10 @@ export const valuationReports = pgTable('valuation_reports', {
   mv1GoodwillGbp: integer('mv1_goodwill_gbp').notNull(),
   buyerReadinessScore: integer('buyer_readiness_score').notNull(),
   isAnonymisedShared: boolean('is_anonymised_shared').notNull().default(false),
+  // Proof of opt-in for this report. Rows shared before versioned consent existed have
+  // NULL here and are left out of the pool until the owner opts in again.
+  shareConsentAt: timestamp('share_consent_at'),
+  shareConsentVersion: text('share_consent_version'),
   anonymisedCode: text('anonymised_code').notNull(),
   intakeJson: jsonb('intake_json').$type<Record<string, unknown>>().notNull(),
   aiPointersJson: jsonb('ai_pointers_json').$type<

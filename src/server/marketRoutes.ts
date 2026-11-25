@@ -7,7 +7,8 @@
  *   DELETE /api/me (erase account data)
  *
  * Nothing row-level ever leaves the server: listings and pool rows go through
- * summariseListings()/summarisePool(), which suppress cells under MIN_CELL_SIZE.
+ * summariseListings()/summarisePool(). Listing cells need MIN_CELL_SIZE rows; pooled
+ * owner cells need POOL_MIN_CONTRIBUTORS distinct accounts and publish a protected median only.
  */
 import type { Express, NextFunction, Request, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth.ts';
@@ -306,13 +307,26 @@ export function registerMarketRoutes(app: Express) {
       } catch (e) {
         console.warn('Firestore erase skipped:', (e as Error).message);
       }
+      // Founding-owner sign-ups (the "leads" collection) are keyed by email, not uid.
+      let leadsDeleted = 0;
+      const email = (req.user!.email || '').trim().toLowerCase();
+      if (email && req.user!.email_verified) {
+        try {
+          const fs = getFirestore(firebaseConfig.firestoreDatabaseId);
+          const snap = await fs.collection('leads').where('email', '==', email).get();
+          await Promise.all(snap.docs.map((d) => d.ref.delete()));
+          leadsDeleted = snap.size;
+        } catch (e) {
+          console.warn('Lead erase skipped:', (e as Error).message);
+        }
+      }
       try {
         await adminAuth.deleteUser(uid);
         authDeleted = true;
       } catch (e) {
         console.warn('Auth user delete skipped:', (e as Error).message);
       }
-      res.json({ deleted: true, firestoreDeleted, authDeleted });
+      res.json({ deleted: true, firestoreDeleted, authDeleted, leadsDeleted });
     } catch (err) {
       console.error('DELETE /api/me error:', err);
       res.status(500).json({ error: 'Unable to delete your data. Please contact us.' });

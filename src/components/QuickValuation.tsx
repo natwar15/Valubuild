@@ -290,10 +290,15 @@ export const QuickValuation: React.FC<{ onOpenPrivacy?: () => void; onOpenDetail
                 Middle of the range <strong>{formatGbp(result.goodwillMidGbp)}</strong>, about {Math.round(result.goodwillPctFees.median ?? 0)}% of fees.
               </p>
               <p className="text-xs text-[#6B6459] mt-1">
-                Compared with {result.comparablesUsed} listings
-                {result.pooledComparablesUsed > 0 ? ` and ${result.pooledComparablesUsed} owner-reported valuations` : ''} ({result.basis}). Treated
-                as a {result.practiceType} practice from your income split.
+                Compared with {result.comparablesUsed} listings ({result.basis}). Treated as a {result.practiceType} practice from
+                your income split.
               </p>
+              {result.ownerReportedMedianPctFees !== null && (
+                <p className="text-xs text-[#26231E] mt-1">
+                  Owners in the pool with similar practices report values of about{' '}
+                  <strong>{Math.round(result.ownerReportedMedianPctFees)}% of fees</strong> (median of 10 or more owners, rounded).
+                </p>
+              )}
               {result.ebitdaCrossCheck && (
                 <p className="text-xs text-[#26231E] mt-2">
                   Profit cross-check: comparable listings ask about {result.ebitdaCrossCheck.multiple}x owner EBITDA, which gives{' '}

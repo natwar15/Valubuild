@@ -1,6 +1,6 @@
 import React from 'react';
 import { POOL_CONSENT_VERSION } from '../shared/consent';
-import { MIN_CELL_SIZE } from '../shared/marketStats';
+import { MIN_CELL_SIZE, POOL_MIN_CONTRIBUTORS } from '../shared/marketStats';
 
 const border = { borderColor: 'var(--color-border)' };
 
@@ -42,13 +42,32 @@ export const PrivacyNotice: React.FC = () => (
         full postcode or district), fees, income split, surgeries, premises type, clinical days, and any optional profit,
         valuation, offer or sale figure you add.
       </li>
-      <li>We never ask for your practice's real name or address. Please don't put them in the nickname.</li>
+      <li>The quick valuation never asks for your practice's real name or address. Please don't put them in the nickname.</li>
     </ul>
     <p className="mt-2">
       We use this to run your account and show you your saved valuations (lawful basis: performing our agreement with
       you). Marketing emails are sent only if you switch them on (consent).
     </p>
-
+    <H>The detailed valuation and document upload</H>
+    <ul className="list-disc pl-5 space-y-1">
+      <li>
+        If you use the detailed valuation, you can enter a practice name. We store it with your saved report so you can
+        recognise it; it is only ever shown to you. We don't store the street address, and we keep only the postcode
+        district (for example "LS1"), not the full postcode.
+      </li>
+      <li>
+        Documents you upload for analysis (accounts, bank statements, NHS schedules, payroll) are sent to Google's Gemini
+        API to extract figures, and we keep the extracted summary with your report. Google processes them for us under its
+        paid API terms, which don't allow it to use them to train its models. Payroll and staff documents can contain your team's personal
+        data: please remove names before uploading, or upload totals only.
+      </li>
+      <li>The voice advisor and the follow-up questions are also processed by Gemini. Answers you give to follow-up questions are saved with your report.</li>
+    </ul>
+    <H>Email sign-ups</H>
+    <p>
+      If you leave your email for the founding-owner list, we keep the email and where you signed up, to send you
+      Valubuild updates (lawful basis: consent). Ask us to remove it at any time; deleting your account also removes it.
+    </p>
     <H>The anonymised pool (optional)</H>
     <p>
       If you tick the box to add a valuation to the pool, its figures are combined with other practices' to build the
@@ -56,19 +75,21 @@ export const PrivacyNotice: React.FC = () => (
       valuations"; your figures then stop being used from the next refresh (within a few minutes).
     </p>
     <ul className="list-disc pl-5 space-y-1 mt-2">
-      <li>Your nickname, email and postcode letters are never shown to anyone else.</li>
+      <li>Your nickname, email, practice name and postcode are never shown to anyone else.</li>
       <li>
-        Figures are only published for groups of at least {MIN_CELL_SIZE} practices, and only as medians and ranges by
-        region or practice type. Group sizes are rounded down to the nearest 5.
+        Pooled figures are only published for groups of at least {POOL_MIN_CONTRIBUTORS} different owners, each counted
+        once however many valuations they save. We publish only a rounded median, slightly adjusted so it can't be
+        worked back to any one practice, never the highest, lowest or quartiles. Group sizes are rounded down to the
+        nearest 5.
       </li>
-      <li>We don't offer filters on pooled data that could single out one practice (for example narrow price or date ranges).</li>
+      <li>Groups are by region or practice type only. We don't offer filters on pooled data that could single out one practice.</li>
       <li>Only owners with a verified email can contribute, to keep the pool reliable.</li>
+      <li>Valuations shared under earlier versions of this notice are not used until you opt in again.</li>
     </ul>
-
     <H>Market data</H>
     <p>
-      Listing figures come from public broker adverts and published market surveys. We show them only as group medians
-      and ranges, without broker references or locations below region level. Figures obtained under a confidentiality
+      Listing figures come from public broker adverts and published market surveys. They contain no personal data. We
+      show them only as group medians and ranges for groups of at least {MIN_CELL_SIZE} listings, without broker references or locations below region level. Figures obtained under a confidentiality
       agreement are never used.
     </p>
 
@@ -81,8 +102,8 @@ export const PrivacyNotice: React.FC = () => (
 
     <H>Your rights</H>
     <p>
-      You can ask for a copy of your data, ask us to correct or delete it, object to or restrict its use, and withdraw
-      consent. You can also complain to the Information Commissioner's Office (ico.org.uk).
+      You can ask for a copy of your data (email us and we'll send it within one month), ask us to correct or delete
+      it, object to or restrict its use, and withdraw consent. You can also complain to the Information Commissioner's Office (ico.org.uk).
     </p>
   </div>
 );
