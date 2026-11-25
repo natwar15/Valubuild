@@ -85,6 +85,7 @@ export async function updateUserPreferences(
     monthlyEmailOptIn?: boolean;
     anonymisedSharingDefault?: boolean;
     displayName?: string;
+    consentVersion?: string;
   }
 ) {
   try {
@@ -94,6 +95,10 @@ export async function updateUserPreferences(
     }
     if (typeof prefs.anonymisedSharingDefault === 'boolean') {
       updateValues.anonymisedSharingDefault = prefs.anonymisedSharingDefault;
+      if (prefs.anonymisedSharingDefault) {
+        updateValues.poolConsentAt = new Date();
+        updateValues.poolConsentVersion = prefs.consentVersion || null;
+      }
     }
     if (typeof prefs.displayName === 'string' && prefs.displayName.trim().length > 0) {
       updateValues.displayName = prefs.displayName.trim().slice(0, 120);
@@ -274,45 +279,6 @@ export async function updateReportAiEnrichment(
     return updated || null;
   } catch (error) {
     throw new Error('Failed to update report AI enrichment', { cause: error });
-  }
-}
-
-/**
- * Strictly anonymised national pool query.
- * NEVER selects practiceName, userUid, userId, email, or raw intakeJson containing addresses.
- */
-export async function listAnonymisedNationalReports(currentUserUid?: string) {
-  try {
-    const rows = await db
-      .select({
-        id: valuationReports.id,
-        anonymisedCode: valuationReports.anonymisedCode,
-        practiceType: valuationReports.practiceType,
-        region: valuationReports.region,
-        postcodeOutward: valuationReports.postcodeOutward,
-        surgeriesCount: valuationReports.surgeriesCount,
-        turnoverGbp: valuationReports.turnoverGbp,
-        fmopGbp: valuationReports.fmopGbp,
-        fmopMarginPercent: valuationReports.fmopMarginPercent,
-        ypMultiple: valuationReports.ypMultiple,
-        mv1GoodwillGbp: valuationReports.mv1GoodwillGbp,
-        buyerReadinessScore: valuationReports.buyerReadinessScore,
-        valuationDriversJson: valuationReports.valuationDriversJson,
-        aiPointersJson: valuationReports.aiPointersJson,
-        updatedAt: valuationReports.updatedAt,
-        ownerUid: valuationReports.userUid,
-      })
-      .from(valuationReports)
-      .where(eq(valuationReports.isAnonymisedShared, true))
-      .orderBy(desc(valuationReports.updatedAt))
-      .limit(100);
-
-    return rows.map(({ ownerUid, ...safe }) => ({
-      ...safe,
-      isMine: Boolean(currentUserUid && ownerUid === currentUserUid),
-    }));
-  } catch (error) {
-    throw new Error('Failed to fetch anonymised national dental reports', { cause: error });
   }
 }
 
