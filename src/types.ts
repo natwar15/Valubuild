@@ -46,6 +46,10 @@ export interface DentalIntakeData {
   directAssociateTherapistCostPercent: number; // Typically 35% - 48%
   staffWagesPa: number; // Practice manager, dental nurses, receptionists
   adjustedEbitda: number; // Normalized operating profit / FMOP
+  // Which profit adjustedEbitda is: before paying anyone to do the principal's
+  // clinical work (owner_operated) or after a market-rate associate replacement
+  // (associate_led). Missing on older saved intakes; the engine then infers it.
+  ebitdaBasis?: 'owner_operated' | 'associate_led';
 
   // Diligence & Clinical Autonomy
   principalChairHoursPerWeek: number; // 0 (fully managed) up to 40+ hrs

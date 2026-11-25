@@ -1,124 +1,214 @@
-import { DentalIntakeData, BankStandardValuationResult, FixItem, PracticeType } from '../types';
+import { DentalIntakeData, BankStandardValuationResult, FixItem } from '../types';
 import { UK_REGIONAL_BENCHMARKS, UK_NATIONAL_AVERAGES } from '../data/ukMarketData';
+import {
+  ASSOCIATE_LED_FULL_WEIGHT_AT_HOURS,
+  ASSOCIATE_LED_MULTIPLE,
+  DEFAULT_OWNER_MARGIN,
+  DRIVER_FACTORS,
+  GOODWILL_PCT_OF_FEES,
+  OWNER_OPERATED_FULL_WEIGHT_AT_HOURS,
+  OWNER_OPERATED_MULTIPLE,
+  PRINCIPAL_HOURS_PER_SURGERY,
+  PRINCIPAL_REPLACEMENT_PAY_RATE,
+  REGION_FACTOR,
+  VALUATION_RANGE,
+  surgeryFactor,
+} from '../data/valuationBenchmarks';
 
-export function calculateDentalValuation(data: DentalIntakeData): BankStandardValuationResult {
+export type EbitdaBasis = 'owner_operated' | 'associate_led';
+
+/**
+ * Which basis the user's profit figure is on. Older saved intakes have no
+ * `ebitdaBasis`. ASSUMPTION: then a principal working more than 10 chair hours
+ * is taken to have typed their own owner-operated profit (the figure most
+ * owners know, and the safer reading: the old engine's associate-led reading
+ * overvalued owner-operated profit by ~70%).
+ */
+export function resolveEbitdaBasis(data: DentalIntakeData): EbitdaBasis {
+  if (data.ebitdaBasis) return data.ebitdaBasis;
+  return (data.principalChairHoursPerWeek ?? 20) > ASSOCIATE_LED_FULL_WEIGHT_AT_HOURS ? 'owner_operated' : 'associate_led';
+}
+
+interface CoreValuation {
+  effectiveIncome: number;
+  clawback: number;
+  planPct: number;
+  basis: EbitdaBasis;
+  ownerEbitda: number;
+  associateEbitda: number;
+  principalReplacementCost: number;
+  principalFeeShare: number;
+  driverFactor: number;
+  ownerMultiple: number;
+  associateMultiple: number;
+  associateWeight: number;
+  ownerValue: number;
+  associateValue: number;
+  goodwill: number;
+}
+
+const clamp = (x: number, lo: number, hi: number) => Math.min(Math.max(x, lo), hi);
+
+/**
+ * Share of practice fees the principal personally generates. Uses the
+ * clinician schedule when one is given, else chair hours against surgery capacity.
+ */
+function principalFeeShare(data: DentalIntakeData): number {
+  const hours = Math.max(data.principalChairHoursPerWeek || 0, 0);
+  const clinicians = data.quickSchedule?.clinicians ?? [];
+  const totalHours = clinicians.reduce((s, c) => s + (c.hoursPerWeek || 0), 0);
+  if (totalHours > 0) {
+    const principalHours = clinicians
+      .filter((c) => c.role === 'Principal')
+      .reduce((s, c) => s + (c.hoursPerWeek || 0), 0);
+    return clamp(principalHours / totalHours, 0, 1);
+  }
+  const capacity = Math.max(data.surgeriesCount || 1, 1) * PRINCIPAL_HOURS_PER_SURGERY;
+  return clamp(hours / capacity, 0, 1);
+}
+
+/** Multiplicative adjustments to the segment multiple (region, size, diligence). */
+function driverFactor(data: DentalIntakeData, clawback: number, planPct: number): number {
+  const f = DRIVER_FACTORS;
+  let k = REGION_FACTOR[data.region] ?? 1;
+
+  if (data.practiceType === 'NHS Practice' || data.practiceType === 'Mixed Practice') {
+    if (data.udaRate >= 38) k *= f.udaRateHigh;
+    else if (data.udaRate > 0 && data.udaRate <= 28) k *= f.udaRateLow;
+    if (clawback > 0) k *= f.clawback;
+  }
+
+  if (planPct >= 35) k *= f.planShareHigh;
+  else if (planPct >= 20) k *= f.planShareMid;
+
+  if (data.associateContracts === 'all_bda_with_covenants') k *= f.contractsBdaWithCovenants;
+  else if (data.associateContracts === 'unwritten_high_flight_risk') k *= f.contractsUnwritten;
+
+  const qs = data.quickSchedule;
+  if (qs) {
+    if (qs.spaceForAdditionalSurgeries >= 1) k *= f.expansionSpace;
+    if (qs.hasIntraoralScanner || qs.hasCerec) k *= f.digitalEquipment;
+    if (data.tenure === 'Leasehold' && qs.leaseYearsRemaining > 0 && qs.leaseYearsRemaining < 7) k *= f.shortLease;
+    if (qs.vtContract) k *= f.vtContract;
+  }
+  return k;
+}
+
+/**
+ * Goodwill value on both EBITDA bases.
+ *
+ * The market prices owner-operated profit at ~3.5x and associate-led
+ * (fully managed) profit at ~7x (Christie H1 2026). The two profits differ by
+ * the cost of paying an associate to do the principal's clinical work, so each
+ * multiple must be applied to its own profit. The old engine applied a ~7x
+ * multiple to whatever profit was typed in.
+ */
+function valueGoodwill(data: DentalIntakeData): CoreValuation {
   const turnover = Math.max(data.turnover, 100000);
-  const regionStats = UK_REGIONAL_BENCHMARKS[data.region] || UK_REGIONAL_BENCHMARKS['Yorkshire & Humber'];
-
-  // 1. Fair Maintainable Trade (FMT) Assessment
   const clawback = Math.max(data.clawbackAmount || 0, 0);
   const effectiveIncome = Math.max(turnover - clawback, 80000);
+  const planPct = ((data.privatePlanTurnover || 0) / turnover) * 100;
+  const basis = resolveEbitdaBasis(data);
 
-  // Cost of Sales Breakdown
+  const share = principalFeeShare(data);
+  const replacement = Math.round(effectiveIncome * share * PRINCIPAL_REPLACEMENT_PAY_RATE);
+
+  // Profit on the user's basis: typed figure, else from their cost inputs,
+  // else the segment's typical owner-operated margin.
+  let ownerEbitda: number;
+  let associateEbitda: number;
+  const hasCostInputs =
+    (data.materialsAndLabCostPercent || 0) > 0 ||
+    (data.directAssociateTherapistCostPercent || 0) > 0 ||
+    (data.staffWagesPa || 0) > 0;
+  if (data.adjustedEbitda > 0 || hasCostInputs) {
+    const stated = data.adjustedEbitda > 0 ? data.adjustedEbitda : costBasedProfit(data, effectiveIncome);
+    if (basis === 'owner_operated') {
+      ownerEbitda = stated;
+      associateEbitda = stated - replacement;
+    } else {
+      associateEbitda = stated;
+      ownerEbitda = stated + replacement;
+    }
+  } else {
+    ownerEbitda = Math.round(effectiveIncome * DEFAULT_OWNER_MARGIN[data.practiceType]);
+    associateEbitda = ownerEbitda - replacement;
+  }
+
+  const k = driverFactor(data, clawback, planPct);
+  const ownerMultiple = OWNER_OPERATED_MULTIPLE[data.practiceType] * k * surgeryFactor(data.surgeriesCount || 3);
+  const associateMultiple = ASSOCIATE_LED_MULTIPLE[data.practiceType] * k;
+
+  const hours = data.principalChairHoursPerWeek ?? 20;
+  let associateWeight = clamp(
+    (OWNER_OPERATED_FULL_WEIGHT_AT_HOURS - hours) /
+      (OWNER_OPERATED_FULL_WEIGHT_AT_HOURS - ASSOCIATE_LED_FULL_WEIGHT_AT_HOURS),
+    0,
+    1,
+  );
+  // A practice that makes no profit once the principal is replaced can only be
+  // sold on its owner-operated profit.
+  if (associateEbitda <= 0) associateWeight = 0;
+
+  const ownerValue = Math.max(ownerEbitda, 0) * ownerMultiple;
+  const associateValue = Math.max(associateEbitda, 0) * associateMultiple;
+  const goodwill = Math.max(associateWeight * associateValue + (1 - associateWeight) * ownerValue, 0);
+
+  return {
+    effectiveIncome,
+    clawback,
+    planPct,
+    basis,
+    ownerEbitda: Math.round(ownerEbitda),
+    associateEbitda: Math.round(associateEbitda),
+    principalReplacementCost: replacement,
+    principalFeeShare: share,
+    driverFactor: k,
+    ownerMultiple,
+    associateMultiple,
+    associateWeight,
+    ownerValue: Math.round(ownerValue),
+    associateValue: Math.round(associateValue),
+    goodwill: Math.round(goodwill / 10000) * 10000,
+  };
+}
+
+/** Profit from the cost inputs (principal not paid, so owner-operated if they work chairside). */
+function costBasedProfit(data: DentalIntakeData, effectiveIncome: number): number {
+  const b = costBreakdown(data, effectiveIncome);
+  return b.grossProfit - b.totalAdminExpenses;
+}
+
+function costBreakdown(data: DentalIntakeData, effectiveIncome: number) {
   const matLabPct = data.materialsAndLabCostPercent ? data.materialsAndLabCostPercent / 100 : 0.16;
-  const matLabCost = Math.round(effectiveIncome * matLabPct);
-
-  // Direct Associate / Clinical Costs
   const assocPct = data.directAssociateTherapistCostPercent ? data.directAssociateTherapistCostPercent / 100 : 0.38;
-  const assocCost = Math.round(effectiveIncome * assocPct);
-
-  const costOfSales = matLabCost + assocCost;
+  const costOfSales = Math.round(effectiveIncome * matLabPct) + Math.round(effectiveIncome * assocPct);
   const grossProfit = effectiveIncome - costOfSales;
-
-  // Administrative / Overheads & Managed Running Costs
   const staffWages = data.staffWagesPa || Math.round(effectiveIncome * 0.18);
   const otherOverheads = Math.round(effectiveIncome * 0.13);
-  const totalAdminExpenses = staffWages + otherOverheads;
+  return { costOfSales, grossProfit, totalAdminExpenses: staffWages + otherOverheads };
+}
 
-  // Fair Maintainable Operating Profit (FMOP) / Adopted EBITDA
-  // If user provided a specific adjusted EBITDA, benchmark and blend with calculated FMOP
-  let fmop = data.adjustedEbitda > 0
-    ? Math.round((data.adjustedEbitda * 0.7) + ((grossProfit - totalAdminExpenses) * 0.3))
-    : Math.max(grossProfit - totalAdminExpenses, Math.round(effectiveIncome * 0.18));
+export function calculateDentalValuation(data: DentalIntakeData): BankStandardValuationResult {
+  const regionStats = UK_REGIONAL_BENCHMARKS[data.region] || UK_REGIONAL_BENCHMARKS['Yorkshire & Humber'];
+  const core = valueGoodwill(data);
+  const { effectiveIncome, clawback, planPct } = core;
+  const { costOfSales, grossProfit, totalAdminExpenses } = costBreakdown(data, effectiveIncome);
 
-  // Ensure reasonable bounds
-  if (fmop < effectiveIncome * 0.08) fmop = Math.round(effectiveIncome * 0.12);
+  // 1. Reported FMOP: the fully managed (associate-led) profit, as in a bank
+  // valuation. If replacing the principal leaves too little profit to quote a
+  // sensible multiple, report the owner-operated profit instead.
+  const reportOnAssociateBasis = core.associateEbitda >= effectiveIncome * 0.05;
+  const fmop = reportOnAssociateBasis ? core.associateEbitda : core.ownerEbitda;
   const fmopMarginPercent = parseFloat(((fmop / effectiveIncome) * 100).toFixed(1));
 
-  // 2. Multiplier Determination (Years Purchase / YP)
-  // Base YP multiplier by Practice Type
-  let baseMultiplier = 5.5;
-  if (data.practiceType === 'Private Practice') {
-    baseMultiplier = 7.5;
-  } else if (data.practiceType === 'Specialist Practice') {
-    baseMultiplier = 8.5;
-  } else if (data.practiceType === 'Mixed Practice') {
-    baseMultiplier = 6.8;
-  } else {
-    // NHS Practice
-    baseMultiplier = 5.2;
-  }
-
-  // Adjustments based on real UK Diligence Drivers:
-  // Driver A: UDA Rate & Contract Health
-  if (data.practiceType === 'NHS Practice' || data.practiceType === 'Mixed Practice') {
-    if (data.udaRate >= 38) {
-      baseMultiplier += 0.6; // High UDA rate premium
-    } else if (data.udaRate <= 28) {
-      baseMultiplier -= 0.4;
-    }
-    if (clawback > 0) {
-      baseMultiplier -= 0.5; // Clawback penalty
-    }
-  }
-
-  // Driver B: Monthly Recurring Capitation (Denplan / Practice Plan)
-  const planPct = (data.privatePlanTurnover / turnover) * 100;
-  if (planPct >= 35) {
-    baseMultiplier += 1.2;
-  } else if (planPct >= 20) {
-    baseMultiplier += 0.6;
-  }
-
-  // Driver C: Principal Chairside Dependency (The #1 Haircut in Dental M&A)
-  if (data.principalChairHoursPerWeek <= 10) {
-    baseMultiplier += 0.8; // Fully associate-led managed entity
-  } else if (data.principalChairHoursPerWeek >= 30) {
-    baseMultiplier -= 1.0; // Heavy owner-operator penalty
-  }
-
-  // Driver D: Surgeries & Capacity
-  if (data.surgeriesCount >= 5) {
-    baseMultiplier += 0.4;
-  } else if (data.surgeriesCount <= 2) {
-    baseMultiplier -= 0.4;
-  }
-
-  // Driver E: Associate Contracts
-  if (data.associateContracts === 'all_bda_with_covenants') {
-    baseMultiplier += 0.3;
-  } else if (data.associateContracts === 'unwritten_high_flight_risk') {
-    baseMultiplier -= 0.8;
-  }
-
-  // Regional adjustments
-  if (data.region === 'London & South East') baseMultiplier += 0.5;
-  if (data.region === 'North East' || data.region === 'Wales') baseMultiplier -= 0.2;
-
-  // Driver F: Quick Broker Schedule Enrichments (expansion capacity, digital equipment, lease security)
-  if (data.quickSchedule) {
-    if (data.quickSchedule.spaceForAdditionalSurgeries >= 1) {
-      baseMultiplier += 0.2;
-    }
-    if (data.quickSchedule.hasIntraoralScanner || data.quickSchedule.hasCerec) {
-      baseMultiplier += 0.15;
-    }
-    if (data.tenure === 'Leasehold' && data.quickSchedule.leaseYearsRemaining > 0 && data.quickSchedule.leaseYearsRemaining < 7) {
-      baseMultiplier -= 0.35; // Short lease risk for bank funding
-    }
-    if (data.quickSchedule.vtContract) {
-      baseMultiplier += 0.1;
-    }
-  }
-
-  const adoptedYp = parseFloat(Math.min(Math.max(baseMultiplier, 3.2), 11.5).toFixed(2));
-  const ypRangeLow = parseFloat(Math.max(adoptedYp - 0.75, 3.0).toFixed(2));
-  const ypRangeHigh = parseFloat(Math.min(adoptedYp + 1.25, 12.0).toFixed(2));
+  // 2. Effective multiple of the reported FMOP.
+  const mv1MarketValueGoodwill = core.goodwill;
+  const adoptedYp = fmop > 0 ? parseFloat((mv1MarketValueGoodwill / fmop).toFixed(2)) : 0;
+  const ypRangeLow = parseFloat((adoptedYp * VALUATION_RANGE.low).toFixed(2));
+  const ypRangeHigh = parseFloat((adoptedYp * VALUATION_RANGE.high).toFixed(2));
 
   // 3. Bank-Standard Valuations
-  // MV1: Market Value of Goodwill on Fully Managed Basis
-  const mv1MarketValueGoodwill = Math.round((fmop * adoptedYp) / 10000) * 10000;
-  
   // Freehold Bricks & Mortar estimate if freehold
   const floorArea = data.floorAreaSqFt || 2000;
   const estimatedFreeholdBuildingValue = data.tenure === 'Freehold'
@@ -140,23 +230,43 @@ export function calculateDentalValuation(data: DentalIntakeData): BankStandardVa
   const reinstatementCostEstimate = Math.round(floorArea * 370); // Day One rebuild cost ~£370/sq ft
 
   // 4. Buyer-Readiness Score (0 to 100)
-  let score = Math.round((adoptedYp / 11.5) * 85);
+  // ASSUMPTION: 60 for a benchmark practice, moved by the diligence factor and
+  // by how far the practice runs without the principal in the chair.
+  const hours = data.principalChairHoursPerWeek ?? 20;
+  let score = 60 + Math.round((core.driverFactor - 1) * 150);
+  if (hours <= 10) score += 10;
+  else if (hours >= 30) score -= 10;
   if (data.hasDeconRoom) score += 5;
   if (data.cqcStatus === 'Good / Outstanding') score += 5;
   if (data.associateContracts === 'all_bda_with_covenants') score += 5;
   const buyerReadinessScore = Math.min(Math.max(score, 25), 98);
 
-  // Premium Readiness Valuation Potential (Target 85+ score)
-  const premiumYp = Math.min(adoptedYp + 2.2, 11.8);
-  const potentialPremiumValuation = Math.round(fmop * premiumYp);
-  const potentialUpsidePounds = Math.max(potentialPremiumValuation - mv1MarketValueGoodwill, 200000);
+  // Premium readiness: the same practice with the main value drivers fixed.
+  const premiumCase = valueGoodwill({
+    ...data,
+    ebitdaBasis: core.basis,
+    principalChairHoursPerWeek: Math.min(hours, 10),
+    privatePlanTurnover: Math.max(data.privatePlanTurnover || 0, Math.round(data.turnover * 0.35)),
+    associateContracts: 'all_bda_with_covenants',
+    clawbackAmount: 0,
+  });
+  const potentialPremiumValuation = Math.max(premiumCase.goodwill, mv1MarketValueGoodwill);
+  const potentialUpsidePounds = potentialPremiumValuation - mv1MarketValueGoodwill;
+
+  // Impact of one fix = value with the fix applied minus value today.
+  // The profit basis is pinned so that changing chair hours doesn't change how
+  // the typed profit is read.
+  const fixImpact = (changes: Partial<DentalIntakeData>) =>
+    Math.max(valueGoodwill({ ...data, ebitdaBasis: core.basis, ...changes }).goodwill - mv1MarketValueGoodwill, 0);
+  // ASSUMPTION: a fix's low estimate is 60% of the modelled gain (execution risk).
+  const impactRange = (gain: number) => ({ minG: Math.round(gain * 0.6), maxG: gain });
+  const turnover = Math.max(data.turnover, 100000);
 
   // 5. Prioritized Fixes with Exact Pound (£) Impact
   const topFixes: FixItem[] = [];
 
   if (data.principalChairHoursPerWeek >= 20) {
-    const minG = Math.round(fmop * 1.0);
-    const maxG = Math.round(fmop * 1.8);
+    const { minG, maxG } = impactRange(fixImpact({ principalChairHoursPerWeek: 12 }));
     topFixes.push({
       id: 'fix-chair',
       rank: 1,
@@ -170,8 +280,7 @@ export function calculateDentalValuation(data: DentalIntakeData): BankStandardVa
   }
 
   if (planPct < 25) {
-    const minG = Math.round(fmop * 0.8);
-    const maxG = Math.round(fmop * 1.4);
+    const { minG, maxG } = impactRange(fixImpact({ privatePlanTurnover: Math.round(turnover * 0.35) }));
     topFixes.push({
       id: 'fix-plan',
       rank: 2,
@@ -185,8 +294,11 @@ export function calculateDentalValuation(data: DentalIntakeData): BankStandardVa
   }
 
   if (clawback > 0 || (data.practiceType === 'NHS Practice' && data.surgeryChairUtilisationPercent < 80)) {
-    const minG = Math.round(fmop * 0.4);
-    const maxG = Math.round(fmop * 0.8);
+    // ASSUMPTION: delivering the missing UDAs costs ~50% of their value in associate pay.
+    const { minG, maxG } = impactRange(fixImpact({
+      clawbackAmount: 0,
+      adjustedEbitda: data.adjustedEbitda > 0 ? data.adjustedEbitda + Math.round(clawback * 0.5) : 0,
+    }));
     topFixes.push({
       id: 'fix-uda',
       rank: 3,
@@ -200,8 +312,14 @@ export function calculateDentalValuation(data: DentalIntakeData): BankStandardVa
   }
 
   if (data.surgeryChairUtilisationPercent < 75) {
-    const minG = Math.round(fmop * 0.35);
-    const maxG = Math.round(fmop * 0.7);
+    // ASSUMPTION: filling chairs to 85% grows fees pro rata, at a 35% contribution
+    // margin (after associate pay and materials; fixed costs don't rise).
+    const util = Math.max(data.surgeryChairUtilisationPercent, 20);
+    const extraFees = Math.round(turnover * (85 - util) / util);
+    const { minG, maxG } = impactRange(fixImpact({
+      turnover: turnover + extraFees,
+      adjustedEbitda: data.adjustedEbitda > 0 ? data.adjustedEbitda + Math.round(extraFees * 0.35) : 0,
+    }));
     topFixes.push({
       id: 'fix-chair-util',
       rank: 4,
@@ -214,7 +332,7 @@ export function calculateDentalValuation(data: DentalIntakeData): BankStandardVa
     });
   }
 
-  const finalTopFixes = topFixes.slice(0, 3).map((f, idx) => ({ ...f, rank: idx + 1 }));
+  const finalTopFixes = topFixes.filter((f) => f.estimatedPoundImpactMax > 0).slice(0, 3).map((f, idx) => ({ ...f, rank: idx + 1 }));
 
   // 6. SWOT Analysis Table (Matching Bank Valuation Report standard)
   const swotAnalysis = {
@@ -246,59 +364,58 @@ export function calculateDentalValuation(data: DentalIntakeData): BankStandardVa
     ],
   };
 
-  // 7. Valuation Methodology Comparison (Corporate EBITDA vs Christie/FTA % of Fees vs Reconstituted Net Profit)
-  let baseGrossFeePct = 125;
-  if (data.practiceType === 'NHS Practice') {
-    baseGrossFeePct = 135;
-    if (data.udaRate >= 38) baseGrossFeePct += 15;
-    if (data.udaRate <= 28) baseGrossFeePct -= 15;
-    if (clawback > 0) baseGrossFeePct -= 20;
-  } else if (data.practiceType === 'Private Practice') {
-    baseGrossFeePct = 115;
-    if (planPct >= 35) baseGrossFeePct += 20;
-  } else if (data.practiceType === 'Specialist Practice') {
-    baseGrossFeePct = 140;
-  } else {
-    // Mixed Practice
-    baseGrossFeePct = 128;
-    if (planPct >= 25) baseGrossFeePct += 10;
+  // 7. Valuation Methodology Comparison (Corporate EBITDA vs % of Fees vs Owner-Operated Profit)
+  // % of fees: NASDAL April 2026 segment figure, moved by the same drivers.
+  let feePctAdjustment = 0;
+  if (data.practiceType === 'NHS Practice' || data.practiceType === 'Mixed Practice') {
+    if (data.udaRate >= 38) feePctAdjustment += 10;
+    else if (data.udaRate > 0 && data.udaRate <= 28) feePctAdjustment -= 10;
+    if (clawback > 0) feePctAdjustment -= 15;
   }
+  if (planPct >= 35) feePctAdjustment += 10;
+  else if (planPct >= 20) feePctAdjustment += 5;
+  const baseGrossFeePct = Math.round(
+    (GOODWILL_PCT_OF_FEES[data.practiceType] + feePctAdjustment) * (REGION_FACTOR[data.region] ?? 1),
+  );
 
   const grossFeeValuation = Math.round(effectiveIncome * (baseGrossFeePct / 100));
-  const grossFeeRangeLow = Math.round(effectiveIncome * ((baseGrossFeePct - 18) / 100));
-  const grossFeeRangeHigh = Math.round(effectiveIncome * ((baseGrossFeePct + 22) / 100));
+  const grossFeeRangeLow = Math.round(effectiveIncome * ((baseGrossFeePct - 20) / 100));
+  const grossFeeRangeHigh = Math.round(effectiveIncome * ((baseGrossFeePct + 20) / 100));
 
-  // Reconstituted Net Profit for Sole Principal / Partner Buy-In
-  const principalChairHrs = data.principalChairHoursPerWeek || 20;
-  const principalClinicalSalaryAllowance = Math.round((principalChairHrs / 40) * 95000);
-  const reconstitutedProfit = Math.max(fmop + Math.round(principalClinicalSalaryAllowance * 0.4), Math.round(effectiveIncome * 0.16));
-  const reconstitutedMultiple = parseFloat((adoptedYp * 0.85).toFixed(2));
-  const reconstitutedValuation = Math.round(reconstitutedProfit * reconstitutedMultiple);
+  // Owner-operated profit (before paying for the principal's clinical work).
+  const principalClinicalSalaryAllowance = core.principalReplacementCost;
+  const reconstitutedProfit = core.ownerEbitda;
+  const reconstitutedMultiple = parseFloat(core.ownerMultiple.toFixed(2));
+  const reconstitutedValuation = Math.round(core.ownerValue);
+  const associateMultiple = parseFloat(core.associateMultiple.toFixed(2));
 
   const methodologyComparison = {
     corporateEbitda: {
       name: 'Corporate EBITDA Multiple (DSO / PE Standard)',
-      ypMultiple: adoptedYp,
-      valuationGbp: mv1MarketValueGoodwill,
-      valuationRange: [Math.round(fmop * ypRangeLow), Math.round(fmop * ypRangeHigh)] as [number, number],
-      basis: 'Capitalisation of Fair Maintainable Operating Profit (EBITDA) with fully managed associate staffing.',
+      ypMultiple: associateMultiple,
+      valuationGbp: core.associateValue,
+      valuationRange: [
+        Math.round(core.associateValue * VALUATION_RANGE.low),
+        Math.round(core.associateValue * VALUATION_RANGE.high),
+      ] as [number, number],
+      basis: `Associate-led EBITDA of £${Math.max(core.associateEbitda, 0).toLocaleString('en-GB')} (after a £${core.principalReplacementCost.toLocaleString('en-GB')} market-rate replacement for the principal's clinical work) at ${associateMultiple}x.`,
       typicalBuyer: 'Portman Dentex, Bupa Dental Care, Rodericks Dental Partners, Riverdale Healthcare, Clyde Munro',
     },
     grossFeesTurnover: {
-      name: 'FTA & Christie & Co % of Turnover Benchmark',
+      name: 'NASDAL Goodwill % of Fees Benchmark',
       adoptedPercent: baseGrossFeePct,
       valuationGbp: grossFeeValuation,
       valuationRange: [grossFeeRangeLow, grossFeeRangeHigh] as [number, number],
-      basis: `Traditional valuation benchmark based on ${baseGrossFeePct}% of verified gross annual fee income.`,
+      basis: `${baseGrossFeePct}% of gross fees: the NASDAL April 2026 average for this practice type, adjusted for region, UDA rate, clawback and plan income.`,
       typicalBuyer: 'Independent practice owners, regional 2–5 practice groups, commercial bank debt underwriting',
     },
     reconstitutedNetProfit: {
-      name: 'Reconstituted Net Profit (Principal Buy-In)',
+      name: 'Owner-Operated EBITDA Multiple',
       adjustedProfitGbp: reconstitutedProfit,
       principalClinicalSalaryAllowance,
       multiple: reconstitutedMultiple,
       valuationGbp: reconstitutedValuation,
-      basis: 'Assessment of owner-operator net cashflow after notional principal clinical replacement salary.',
+      basis: `Owner-operated EBITDA (before paying anyone to do the principal's clinical work) at ${reconstitutedMultiple}x, the Christie H1 2026 owner-operated multiple adjusted for this practice.`,
       typicalBuyer: 'First-time associate buyers, existing practice partners, local independent dentists',
     },
   };
