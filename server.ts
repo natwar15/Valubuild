@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import path from 'path';
@@ -711,7 +712,7 @@ Evaluate how this answer refines the valuation:
     }
   });
 
-  app.post('/api/ai/monthly-market-update', optionalAuth, async (req: AuthRequest, res) => {
+  app.post('/api/ai/monthly-market-update', requireAuth, async (req: AuthRequest, res) => {
     try {
       const ai = getGeminiClient();
       const monthKey = getCurrentMonthKey();
@@ -1033,7 +1034,7 @@ Return:
   // =========================================================================
   // 7. GOOGLE MAPS GROUNDING — LOCAL CATCHMENT & COMPETITOR ANALYSIS
   // =========================================================================
-  app.post('/api/ai/catchment-intelligence', async (req, res) => {
+  app.post('/api/ai/catchment-intelligence', requireAuth, async (req: AuthRequest, res) => {
     try {
       const { region, locationQuery, latitude, longitude } = req.body || {};
       const lat = Number(latitude);
@@ -1138,15 +1139,25 @@ Identify nearby dental practices, NHS vs private positioning signals, patient re
         if (msg.type === 'start') {
           if (liveSession) return;
 
-          // Optional token validation to enrich context safely
+          // Require a signed-in user so the Gemini key can't be used anonymously
           let userLabel = 'Dental Practice Principal';
-          if (typeof msg.idToken === 'string' && msg.idToken.length > 0) {
-            try {
-              const decoded = await adminAuth.verifyIdToken(msg.idToken);
-              userLabel = decoded.name || decoded.email || userLabel;
-            } catch {
-              // Allow advisory voice session with generic label if token invalid
+          try {
+            if (typeof msg.idToken !== 'string' || msg.idToken.length === 0) {
+              throw new Error('missing token');
             }
+            const decoded = await adminAuth.verifyIdToken(msg.idToken);
+            userLabel = decoded.name || decoded.email || userLabel;
+          } catch {
+            if (clientWs.readyState === WebSocket.OPEN) {
+              clientWs.send(
+                JSON.stringify({
+                  type: 'error',
+                  message: 'Sign in with Google to use the live voice advisor.',
+                })
+              );
+            }
+            closeAll();
+            return;
           }
 
           const practiceContext =
