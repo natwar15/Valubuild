@@ -441,6 +441,8 @@ export const QuickPracticeInfoSheet: React.FC<QuickPracticeInfoSheetProps> = ({
       directAssociateTherapistCostPercent: derivedClinicalCostPct,
       staffWagesPa: totalStaffPayrollPa,
       adjustedEbitda: derivedEbitda,
+      // derivedEbitda already deducts the principal's replacement cost.
+      ebitdaBasis: 'associate_led',
       principalChairHoursPerWeek: totalPrincipalHours,
       associateRemunerationModel: udaRequirement > 0 ? 'per_uda_rate' : 'percentage_split_bda',
       associateContracts,

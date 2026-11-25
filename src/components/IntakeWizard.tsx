@@ -40,6 +40,7 @@ export const SAMPLE_MIXED_PRESET: DentalIntakeData = {
   directAssociateTherapistCostPercent: 40.0,
   staffWagesPa: 210000,
   adjustedEbitda: 250000,
+  ebitdaBasis: 'associate_led',
   principalChairHoursPerWeek: 20,
   associateRemunerationModel: 'per_uda_rate',
   associateContracts: 'all_bda_with_covenants',
@@ -75,6 +76,7 @@ export const SPECIALIST_PRESET: DentalIntakeData = {
   directAssociateTherapistCostPercent: 36.0,
   staffWagesPa: 420000,
   adjustedEbitda: 680000,
+  ebitdaBasis: 'associate_led',
   principalChairHoursPerWeek: 8, // Fully associate & specialist led
   associateRemunerationModel: 'percentage_split_bda',
   associateContracts: 'all_bda_with_covenants',
@@ -110,6 +112,7 @@ export const PRIVATE_CAPITATION_PRESET: DentalIntakeData = {
   directAssociateTherapistCostPercent: 35.0,
   staffWagesPa: 245000,
   adjustedEbitda: 390000,
+  ebitdaBasis: 'owner_operated',
   principalChairHoursPerWeek: 12,
   associateRemunerationModel: 'percentage_split_bda',
   associateContracts: 'all_bda_with_covenants',
@@ -145,6 +148,7 @@ export const NHS_PRESET: DentalIntakeData = {
   directAssociateTherapistCostPercent: 42.0,
   staffWagesPa: 165000,
   adjustedEbitda: 148000,
+  ebitdaBasis: 'associate_led',
   principalChairHoursPerWeek: 32, // Principal heavily chair-bound
   associateRemunerationModel: 'per_uda_rate',
   associateContracts: 'informal_some_covenants',
@@ -759,7 +763,7 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalcu
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-primary)' }}>
-                  Current Adjusted EBITDA / FMOP (£)
+                  Current Adjusted EBITDA (£)
                 </label>
                 <input
                   type="number"
@@ -769,8 +773,18 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalcu
                   className="w-full px-3 py-2.5 rounded border font-bold text-[#A6521C]"
                   style={{ borderColor: '#D6BC9E', backgroundColor: '#FAF5EE' }}
                 />
+                <select
+                  aria-label="Profit basis"
+                  value={formData.ebitdaBasis ?? (formData.principalChairHoursPerWeek > 10 ? 'owner_operated' : 'associate_led')}
+                  onChange={(e) => setFormData({ ...formData, ebitdaBasis: e.target.value as 'owner_operated' | 'associate_led' })}
+                  className="w-full mt-2 px-3 py-2 rounded border text-xs"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <option value="owner_operated">Owner-operated: before paying anyone for my own clinical work</option>
+                  <option value="associate_led">Associate-led: after paying an associate to replace my clinical work</option>
+                </select>
                 <span className="text-[11px] text-gray-500">
-                  Pre-tax profit after principal replacement &amp; non-recurring add-backs
+                  Pre-tax profit with non-recurring items added back. Buyers pay about 3.5x owner-operated profit and about 7x associate-led profit, so pick the one this figure is.
                 </span>
               </div>
             </div>
