@@ -9,7 +9,7 @@ import {
 import { MapPin, Compass, ExternalLink, Search, AlertCircle } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { formatGbp } from '../utils/valuationEngine';
-import { AnonymisedReportItem } from './AnonymisedNationalExchange';
+import type { Cell, ListingsSummary } from '../shared/marketStats';
 
 const REGION_CENTROIDS: Record<string, { lat: number; lng: number }> = {
   'London & South East': { lat: 51.35, lng: -0.25 },
@@ -22,17 +22,6 @@ const REGION_CENTROIDS: Record<string, { lat: number; lng: number }> = {
   Wales: { lat: 51.48, lng: -3.18 },
   'North East': { lat: 54.97, lng: -1.61 },
 };
-
-function getApproximateRegionalPosition(region: string, seedIndex: number) {
-  const base = REGION_CENTROIDS[region] || { lat: 53.5, lng: -1.8 };
-  // Small deterministic regional offset so anonymised pins never overlap and never pinpoint a real address
-  const angle = (seedIndex * 137.5 * Math.PI) / 180;
-  const radius = 0.08 + (seedIndex % 4) * 0.04;
-  return {
-    lat: Number((base.lat + Math.sin(angle) * radius).toFixed(4)),
-    lng: Number((base.lng + Math.cos(angle) * radius * 1.4).toFixed(4)),
-  };
-}
 
 interface GroundedPlace {
   title: string;
@@ -49,10 +38,9 @@ export const UkDentalMap: React.FC<UkDentalMapProps> = ({
   defaultRegion = 'Yorkshire & Humber',
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-  const [reports, setReports] = useState<AnonymisedReportItem[]>([]);
-  const [selectedPin, setSelectedPin] = useState<
-    (AnonymisedReportItem & { position: { lat: number; lng: number } }) | null
-  >(null);
+  // One pin per region, built from public listing aggregates (never individual practices).
+  const [regionCells, setRegionCells] = useState<Cell[]>([]);
+  const [selectedPin, setSelectedPin] = useState<(Cell & { position: { lat: number; lng: number } }) | null>(null);
 
   // Google Maps Grounding local catchment intelligence state
   const [catchmentRegion, setCatchmentRegion] = useState<string>(defaultRegion);
@@ -62,23 +50,22 @@ export const UkDentalMap: React.FC<UkDentalMapProps> = ({
   const [groundedPlaces, setGroundedPlaces] = useState<GroundedPlace[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const loadReports = useCallback(async () => {
+  const loadRegions = useCallback(async () => {
     try {
-      const res = await apiFetch<{ reports: AnonymisedReportItem[] }>('/api/anonymised-reports');
-      setReports(res.reports || []);
+      const res = await apiFetch<{ summary: ListingsSummary }>('/api/market/summary');
+      setRegionCells(res.summary.byRegion || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load regional map pins.');
+      setError(err instanceof Error ? err.message : 'Unable to load regional map data.');
     }
   }, []);
 
   useEffect(() => {
-    loadReports();
-  }, [loadReports]);
+    loadRegions();
+  }, [loadRegions]);
 
-  const mappedPins = reports.map((r, idx) => ({
-    ...r,
-    position: getApproximateRegionalPosition(r.region, idx + r.id),
-  }));
+  const mappedPins = regionCells
+    .filter((c) => !c.suppressed && REGION_CENTROIDS[c.key])
+    .map((c) => ({ ...c, position: REGION_CENTROIDS[c.key] }));
 
   const handleRunCatchmentAnalysis = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,24 +110,13 @@ export const UkDentalMap: React.FC<UkDentalMapProps> = ({
               UK Regional Valuation Map
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold mt-2 text-[#26231E]" style={{ fontFamily: 'var(--font-heading)' }}>
-              Anonymised Dental Clinic Multiples Across Great Britain
+              Practice prices across Great Britain
             </h2>
             <p className="text-sm text-[#6B6459] mt-1">
-              Pins reflect approximate regional centroids for privacy — never exact street addresses. Click any marker to inspect anonymised surgeries, MV1 goodwill, YP multiple, and readiness score.
+              One pin per region, summarising public broker listings. Click a pin for the median asking price and goodwill as a share of fees. Regions with fewer than 5 listings are not shown.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-[#A6521C]" /> Private / Specialist
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-[#26231E]" /> Mixed
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-emerald-700" /> NHS
-            </span>
-          </div>
         </div>
 
         {!apiKey ? (
@@ -162,51 +138,31 @@ export const UkDentalMap: React.FC<UkDentalMapProps> = ({
                 internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
                 className="w-full h-full"
               >
-                {mappedPins.map((pin) => {
-                  const bg =
-                    pin.practiceType === 'NHS Practice'
-                      ? '#047857'
-                      : pin.practiceType === 'Mixed Practice'
-                      ? '#26231E'
-                      : '#A6521C';
-
-                  return (
-                    <AdvancedMarker
-                      key={pin.id}
-                      position={pin.position}
-                      title={`${pin.anonymisedCode} · ${pin.region}`}
-                      onClick={() => setSelectedPin(pin)}
-                    >
-                      <Pin background={bg} borderColor="#FFFFFF" glyphColor="#FFFFFF" />
-                    </AdvancedMarker>
-                  );
-                })}
+                {mappedPins.map((pin) => (
+                  <AdvancedMarker
+                    key={pin.key}
+                    position={pin.position}
+                    title={pin.key}
+                    onClick={() => setSelectedPin(pin)}
+                  >
+                    <Pin background="#A6521C" borderColor="#FFFFFF" glyphColor="#FFFFFF" />
+                  </AdvancedMarker>
+                ))}
 
                 {selectedPin && (
-                  <InfoWindow
-                    position={selectedPin.position}
-                    onCloseClick={() => setSelectedPin(null)}
-                  >
+                  <InfoWindow position={selectedPin.position} onCloseClick={() => setSelectedPin(null)}>
                     <div className="p-1 min-w-[210px] text-left text-[#26231E]">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="text-xs font-mono font-bold text-[#A6521C]">
-                          {selectedPin.anonymisedCode}
-                        </span>
-                        <span className="text-[11px] font-semibold bg-[#FAF5EE] px-1.5 py-0.5 rounded">
-                          {selectedPin.ypMultiple} YP
-                        </span>
-                      </div>
-                      <p className="text-xs font-bold">{selectedPin.practiceType}</p>
-                      <p className="text-[11px] text-[#6B6459]">
-                        {selectedPin.region} (Area {selectedPin.postcodeOutward}) · {selectedPin.surgeriesCount} Surgeries
-                      </p>
+                      <p className="text-xs font-bold">{selectedPin.key}</p>
+                      <p className="text-[11px] text-[#6B6459]">{selectedPin.n} listings</p>
                       <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between text-xs">
-                        <span>MV1 Goodwill:</span>
-                        <strong>{formatGbp(selectedPin.mv1GoodwillGbp)}</strong>
+                        <span>Median asking:</span>
+                        <strong>{selectedPin.askingGbp?.median != null ? formatGbp(selectedPin.askingGbp.median) : '–'}</strong>
                       </div>
                       <div className="flex justify-between text-xs">
-                        <span>Readiness Score:</span>
-                        <strong className="text-[#A6521C]">{selectedPin.buyerReadinessScore}/100</strong>
+                        <span>Goodwill % of fees:</span>
+                        <strong className="text-[#A6521C]">
+                          {selectedPin.goodwillPctFees?.median != null ? `${Math.round(selectedPin.goodwillPctFees.median)}%` : '–'}
+                        </strong>
                       </div>
                     </div>
                   </InfoWindow>

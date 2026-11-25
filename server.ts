@@ -9,14 +9,16 @@ import nodemailer from 'nodemailer';
 import { Modality, Type } from '@google/genai';
 import { getGeminiClient } from './src/lib/gemini.ts';
 import { adminAuth } from './src/lib/firebase-admin.ts';
-import { optionalAuth, requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import { registerMarketRoutes } from './src/server/marketRoutes.ts';
+import { recordPoolConsent } from './src/db/poolQueries.ts';
+import { POOL_CONSENT_VERSION } from './src/shared/consent.ts';
 import {
   answerAdaptiveQuestion,
   createAdaptiveQuestions,
   createOrUpdateSnapshot,
   getOrCreateUser,
   getUserReportById,
-  listAnonymisedNationalReports,
   listMonthlyBriefings,
   listUserDocuments,
   listUserEmailDigests,
@@ -111,8 +113,14 @@ async function startServer() {
       const { monthlyEmailOptIn, anonymisedSharingDefault, displayName } = req.body || {};
       const user = await updateUserPreferences(uid, {
         monthlyEmailOptIn: typeof monthlyEmailOptIn === 'boolean' ? monthlyEmailOptIn : undefined,
+        // Turning pooling on only counts with the current notice version (explicit consent).
         anonymisedSharingDefault:
-          typeof anonymisedSharingDefault === 'boolean' ? anonymisedSharingDefault : undefined,
+          anonymisedSharingDefault === false
+            ? false
+            : anonymisedSharingDefault === true && req.body?.consentVersion === POOL_CONSENT_VERSION
+            ? true
+            : undefined,
+        consentVersion: POOL_CONSENT_VERSION,
         displayName: typeof displayName === 'string' ? displayName : undefined,
       });
 
@@ -154,10 +162,13 @@ async function startServer() {
       const ypMultiple = Number(body.ypMultiple) || 6.5;
       const mv1GoodwillGbp = Math.max(0, Number(body.mv1GoodwillGbp) || 0);
       const buyerReadinessScore = Math.max(0, Math.min(100, Number(body.buyerReadinessScore) || 50));
+      // Sharing needs consent: either given now (current notice version) or recorded earlier.
+      const consentNow = body.consentVersion === POOL_CONSENT_VERSION;
       const isAnonymisedShared =
-        typeof body.isAnonymisedShared === 'boolean'
-          ? body.isAnonymisedShared
-          : user.anonymisedSharingDefault;
+        body.isAnonymisedShared === true && (consentNow || Boolean(user.poolConsentAt));
+      if (isAnonymisedShared && consentNow) {
+        await recordPoolConsent(user.id, POOL_CONSENT_VERSION);
+      }
 
       const report = await saveValuationReport({
         userId: user.id,
@@ -212,6 +223,9 @@ async function startServer() {
         return res.status(400).json({ error: 'Invalid report ID.' });
       }
       const isShared = Boolean(req.body?.isAnonymisedShared);
+      if (isShared && req.body?.consentVersion !== POOL_CONSENT_VERSION) {
+        return res.status(400).json({ error: 'Please read and accept the current pooling terms first.' });
+      }
       const updated = await toggleReportAnonymisedSharing(req.user!.uid, reportId, isShared);
       if (!updated) {
         return res.status(404).json({ error: 'Valuation report not found.' });
@@ -223,15 +237,10 @@ async function startServer() {
     }
   });
 
-  app.get('/api/anonymised-reports', optionalAuth, async (req: AuthRequest, res) => {
-    try {
-      const reports = await listAnonymisedNationalReports(req.user?.uid);
-      res.json({ reports });
-    } catch (error) {
-      console.error('GET /api/anonymised-reports error:', error);
-      res.status(500).json({ error: 'Unable to load anonymised national valuation pool.' });
-    }
-  });
+  // The old row-level /api/anonymised-reports endpoint was removed: it exposed
+  // individual practices (postcode district, fees, AI notes). Pooled figures are
+  // now served as suppressed aggregates by /api/pool/summary (src/server/marketRoutes.ts).
+  registerMarketRoutes(app);
 
   // =========================================================================
   // 3. PRACTICE VALUATION HISTORY SNAPSHOTS
@@ -1292,6 +1301,9 @@ Current practice context: ${practiceContext}`,
   // =========================================================================
   // VITE MIDDLEWARE (DEV) OR STATIC DIST (PROD)
   // =========================================================================
+  // Unknown API paths get a JSON 404 instead of falling through to the web app.
+  app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },

@@ -13,7 +13,7 @@ export const requireAuth = async (
 ) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: Sign in with Google to access this feature.' });
+    return res.status(401).json({ error: 'Please sign in to use this feature.' });
   }
 
   const token = authHeader.split('Bearer ')[1];

@@ -44,12 +44,19 @@ import { MonthlyUpdatesAndEmail } from './components/MonthlyUpdatesAndEmail';
 import { AnonymisedNationalExchange } from './components/AnonymisedNationalExchange';
 import { UkDentalMap } from './components/UkDentalMap';
 import { LiveVoiceAdvisor } from './components/LiveVoiceAdvisor';
+import { MarketDataExplorer } from './components/MarketDataExplorer';
+import { QuickValuation } from './components/QuickValuation';
+import { PrivacyNotice } from './components/PrivacyNotice';
+import { AuthModal } from './components/AuthModal';
 import { useAuth } from './context/AuthContext';
 import { calculateDentalValuation, formatGbp } from './utils/valuationEngine';
 import { DentalIntakeData, UkRegion } from './types';
 
 type ActiveView =
   | 'overview'
+  | 'market-data'
+  | 'quick-value'
+  | 'privacy'
   | 'intake'
   | 'documents'
   | 'monthly-news'
@@ -59,7 +66,7 @@ type ActiveView =
   | 'benchmarks';
 
 export default function App() {
-  const { firebaseUser, profile, signInWithGoogle, logout } = useAuth();
+  const { firebaseUser, profile, requestSignIn, logout } = useAuth();
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const [intakeData, setIntakeData] = useState<DentalIntakeData>(SAMPLE_MIXED_PRESET);
   const [valuationResult, setValuationResult] = useState(() => calculateDentalValuation(SAMPLE_MIXED_PRESET));
@@ -141,7 +148,7 @@ export default function App() {
           </button>
 
           {/* Interactive Navigation Tabs */}
-          <nav className="hidden xl:flex items-center gap-1">
+          <nav className="hidden 2xl:flex items-center gap-1 whitespace-nowrap">
             <button
               onClick={() => setActiveView('overview')}
               className={`text-xs font-semibold px-2.5 py-1.5 rounded-[4px] transition-colors ${
@@ -151,6 +158,28 @@ export default function App() {
               }`}
             >
               Overview
+            </button>
+            <button
+              onClick={() => setActiveView('market-data')}
+              className={`text-xs font-semibold px-2.5 py-1.5 rounded-[4px] transition-colors flex items-center gap-1 ${
+                activeView === 'market-data'
+                  ? 'bg-[#26231E] text-white'
+                  : 'text-[#6B6459] hover:text-[#26231E]'
+              }`}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Market Data
+            </button>
+            <button
+              onClick={() => setActiveView('quick-value')}
+              className={`text-xs font-semibold px-2.5 py-1.5 rounded-[4px] transition-colors flex items-center gap-1 ${
+                activeView === 'quick-value'
+                  ? 'bg-[#26231E] text-white'
+                  : 'text-[#6B6459] hover:text-[#26231E]'
+              }`}
+            >
+              <CircleDollarSign className="w-3.5 h-3.5" />
+              Quick Valuation
             </button>
             <button
               onClick={() => setActiveView('intake')}
@@ -250,16 +279,16 @@ export default function App() {
               </div>
             ) : (
               <button
-                onClick={() => signInWithGoogle()}
+                onClick={() => requestSignIn()}
                 className="text-xs font-semibold px-3 py-2 rounded-[4px] border bg-white hover:bg-[#FAF5EE] text-[#26231E] flex items-center gap-1.5"
                 style={{ borderColor: 'var(--color-border)' }}
               >
                 <LogIn className="w-3.5 h-3.5 text-[#A6521C]" />
-                <span>Principal Sign In</span>
+                <span className="whitespace-nowrap">Sign in</span>
               </button>
             )}
             <button
-              onClick={() => setActiveView('intake')}
+              onClick={() => setActiveView('quick-value')}
               className="btn-primary text-xs !py-2 !px-3.5"
             >
               Value Practice (£)
@@ -268,10 +297,12 @@ export default function App() {
         </div>
 
         {/* Tablet/Mobile Scrollable Navigation Strip */}
-        <div className="xl:hidden flex items-center gap-1.5 overflow-x-auto py-2 border-t px-3 bg-[#FAF8F4] text-xs font-semibold" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="2xl:hidden flex items-center gap-1.5 overflow-x-auto py-2 border-t px-3 bg-[#FAF8F4] text-xs font-semibold" style={{ borderColor: 'var(--color-border)' }}>
           {(
             [
               ['overview', 'Overview'],
+              ['market-data', 'Market Data'],
+              ['quick-value', 'Quick Valuation'],
               ['intake', 'Valuation & History'],
               ['documents', 'Docs & Questions'],
               ['monthly-news', 'News & Email'],
@@ -313,6 +344,33 @@ export default function App() {
                 historyRefreshTrigger={dataRefreshTick}
               />
             </div>
+          </div>
+        )}
+
+        {/* PUBLIC MARKET DATA EXPLORER (no account needed) */}
+        {activeView === 'market-data' && (
+          <div className="px-4 sm:px-6 py-10">
+            <div className="mx-auto" style={{ maxWidth: 'var(--max-width)' }}>
+              <MarketDataExplorer onStartValuation={() => setActiveView('quick-value')} />
+            </div>
+          </div>
+        )}
+
+        {/* 6-QUESTION VALUATION, SAVED UNDER A NICKNAME */}
+        {activeView === 'quick-value' && (
+          <div className="px-4 sm:px-6 py-10">
+            <div className="mx-auto" style={{ maxWidth: 'var(--max-width)' }}>
+              <QuickValuation
+                onOpenPrivacy={() => setActiveView('privacy')}
+                onOpenDetailed={() => setActiveView('intake')}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeView === 'privacy' && (
+          <div className="px-4 sm:px-6 py-10">
+            <PrivacyNotice />
           </div>
         )}
 
@@ -1685,6 +1743,12 @@ export default function App() {
             <button onClick={() => setActiveView('benchmarks')} className="hover:underline">
               Local vs National
             </button>
+            <button onClick={() => setActiveView('market-data')} className="hover:underline">
+              Market Data
+            </button>
+            <button onClick={() => setActiveView('privacy')} className="hover:underline">
+              Privacy
+            </button>
             <button
               onClick={() => setShareKitOpen(true)}
               className="font-semibold hover:underline"
@@ -1708,6 +1772,8 @@ export default function App() {
         isOpen={shareKitOpen}
         onClose={() => setShareKitOpen(false)}
       />
+
+      <AuthModal onOpenPrivacy={() => setActiveView('privacy')} />
 
       {/* Global Live Voice Valuation Advisor */}
       <LiveVoiceAdvisor intakeData={intakeData} report={valuationResult} />

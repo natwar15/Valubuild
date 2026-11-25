@@ -6,6 +6,15 @@ Around that core the app has regional benchmarks, a UK valuation map, valuation 
 
 All sample practices in the app are fictional and their figures are illustrative.
 
+## Public market data, quick valuation and the owner pool
+
+- **Market data** (no account): filter public broker listings by region, NHS/private mix, status, tenure, surgeries, asking price and listing date, plus published survey history (NASDAL goodwill % of fees, Christie & Co figures). Only medians and ranges are served; individual listings, broker refs and counties never leave the server.
+- **Quick valuation** (no account to see the result): six questions (postcode start, fees, NHS/private/plan split, surgeries, tenure, principal's clinical days) give a goodwill range from comparable listings. Signing up (Google or email + password) lets the owner save it under a nickname; the real practice name and full postcode are never asked for.
+- **Owner pool** (opt-in): saved valuations can be added to the pool with explicit consent (versioned in `src/shared/consent.ts`, verified email required). Owner-reported valuations/offers/sales then feed the quick valuation as extra comparables, and pool aggregates appear in Market Data and UK Pool.
+- **Small-cell rule**: every cell built from fewer than 5 records is suppressed (`MIN_CELL_SIZE` in `src/shared/marketStats.ts`), pool counts are rounded down to 5, and pooled data has only fixed region/type facets so two queries can't be differenced to isolate one practice.
+- **Data files** live outside git. Set `MARKET_DATA_DIR` to a folder with `listings_all.csv` and `market_index.csv`; without it a synthetic sample is shown.
+- **Privacy**: a draft notice is at the "Privacy" link; users can withdraw consent, delete a valuation, or delete their account and data.
+
 ## Stack
 
 | Part | Technology |
@@ -47,6 +56,7 @@ npm start                # serves the API and dist/ on port 3000
 | `npm run build` | Production build of the front end |
 | `npm start` | Production server (`NODE_ENV=production`) |
 | `npm run lint` | Type-check with `tsc --noEmit` |
+| `npm test` | Unit tests for the market statistics, suppression and parsing |
 | `npm run db:push` | Push the Drizzle schema to Postgres (uses `SQL_ADMIN_*`) |
 
 ## Notes
