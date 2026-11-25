@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net: default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['email', 'source'])
+        && data.keys().hasOnly(['email', 'source', 'tier', 'timestamp'])
+        && data.email is string
+        && data.email.size() >= 5
+        && data.email.size() <= 254
+        && data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && data.source is string
+        && data.source.size() <= 100
+        && (!('tier' in data) || data.tier == null || (data.tier is string && data.tier.size() <= 50))
+        && (!('timestamp' in data) || data.timestamp == request.time);
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'monthlyEmailOptIn', 'anonymisedSharingDefault', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'monthlyEmailOptIn', 'anonymisedSharingDefault', 'updatedAt'])
+        && data.uid is string
+        && data.uid == userId
+        && data.email is string
+        && data.email.size() >= 5
+        && data.email.size() <= 254
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 120
+        && data.monthlyEmailOptIn is bool
+        && data.anonymisedSharingDefault is bool
+        && data.updatedAt == request.time;
+    }
+
+    function isValidUserSnapshot(data, userId) {
+      return data.keys().hasAll(['userId', 'snapshotMonth', 'practiceLabel', 'buyerReadinessScore', 'mv1GoodwillGbp', 'ypMultiple', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'snapshotMonth', 'practiceLabel', 'buyerReadinessScore', 'mv1GoodwillGbp', 'ypMultiple', 'updatedAt'])
+        && data.userId is string
+        && data.userId == userId
+        && data.snapshotMonth is string
+        && data.snapshotMonth.matches('^\\d{4}-\\d{2}$')
+        && data.practiceLabel is string
+        && data.practiceLabel.size() >= 1
+        && data.practiceLabel.size() <= 120
+        && data.buyerReadinessScore is int
+        && data.buyerReadinessScore >= 0
+        && data.buyerReadinessScore <= 100
+        && data.mv1GoodwillGbp is int
+        && data.mv1GoodwillGbp >= 0
+        && data.mv1GoodwillGbp <= 100000000
+        && (data.ypMultiple is int || data.ypMultiple is float)
+        && data.ypMultiple >= 0
+        && data.ypMultiple <= 20
+        && data.updatedAt == request.time;
+    }
+
+    // Public lead capture for founding owners (create-only)
+    match /leads/{leadId} {
+      allow create: if isValidId(leadId) && isValidLead(request.resource.data);
+      allow read, update, delete: if false;
+    }
+
+    // Owner-isolated dental principal account profiles
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId) && isOwner(userId) && isValidUserProfile(request.resource.data, userId);
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(request.resource.data, userId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'displayName', 'monthlyEmailOptIn', 'anonymisedSharingDefault', 'updatedAt']);
+      allow delete: if false;
+
+      // Owner-isolated monthly practice valuation history snapshots
+      match /snapshots/{snapshotId} {
+        allow get: if isValidId(userId) && isValidId(snapshotId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(snapshotId) && isOwner(userId) && isValidUserSnapshot(request.resource.data, userId);
+        allow update: if isValidId(userId)
+          && isValidId(snapshotId)
+          && isOwner(userId)
+          && isValidUserSnapshot(request.resource.data, userId)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['snapshotMonth', 'practiceLabel', 'buyerReadinessScore', 'mv1GoodwillGbp', 'ypMultiple', 'updatedAt']);
+        allow delete: if isValidId(userId) && isValidId(snapshotId) && isOwner(userId);
+      }
+    }
+  }
+}

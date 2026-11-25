@@ -1,0 +1,6 @@
+{
+  "name": "Valubuild",
+  "description": "Live exit valuation dashboard, corporate M&A comps, and buyer-readiness scorecard for UK dental practice principals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

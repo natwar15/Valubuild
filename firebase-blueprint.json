@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "Founding-owner email capture lead",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Owner business email address",
+          "maxLength": 254
+        },
+        "source": {
+          "type": "string",
+          "description": "Which CTA on the page generated the lead",
+          "maxLength": 100
+        },
+        "tier": {
+          "type": "string",
+          "description": "Selected pricing tier",
+          "maxLength": 50
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Creation server timestamp"
+        }
+      },
+      "required": ["email", "source"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated dental principal preferences stored under owner-only path",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "monthlyEmailOptIn": {
+          "type": "boolean"
+        },
+        "anonymisedSharingDefault": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["uid", "email", "displayName", "monthlyEmailOptIn", "anonymisedSharingDefault", "updatedAt"]
+    },
+    "UserSnapshot": {
+      "title": "UserSnapshot",
+      "description": "Monthly practice valuation snapshot mirrored to user subcollection",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "snapshotMonth": {
+          "type": "string",
+          "maxLength": 7
+        },
+        "practiceLabel": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "buyerReadinessScore": {
+          "type": "integer"
+        },
+        "mv1GoodwillGbp": {
+          "type": "integer"
+        },
+        "ypMultiple": {
+          "type": "number"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["userId", "snapshotMonth", "practiceLabel", "buyerReadinessScore", "mv1GoodwillGbp", "ypMultiple", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "Collection of early access founding-owner leads (create-only public)"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Owner-isolated dental principal account preferences"
+    },
+    "/users/{userId}/snapshots/{snapshotId}": {
+      "schema": "UserSnapshot",
+      "description": "Owner-isolated monthly practice valuation history snapshots"
+    }
+  }
+}
