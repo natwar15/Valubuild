@@ -329,7 +329,7 @@ export const QuickValuation: React.FC<{ onOpenPrivacy?: () => void; onOpenDetail
                   Optional: had a professional valuation, an offer or a sale?
                 </summary>
                 <p className="text-[11px] text-[#6B6459] mt-2">
-                  Real figures are the most useful thing you can share. They are only used in groups of 5 or more.
+                  Real figures are the most useful thing you can share. They are only used in groups of at least 10 owners, and only as a median.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
                   <select value={form.reportedValueKind} onChange={set('reportedValueKind')} className={inputCls} style={border} aria-label="Type of figure">

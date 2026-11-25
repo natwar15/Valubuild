@@ -451,7 +451,7 @@ export const MarketDataExplorer: React.FC<{ onStartValuation?: () => void }> = (
               <Users className="w-4 h-4 text-[#A6521C]" /> Shared by practice owners
             </h3>
             <span className="text-[11px] text-[#6B6459] flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" /> Groups of 5 or more only. Counts rounded down to the nearest 5.
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" /> Groups of 10 or more owners only, medians only. Counts rounded down to the nearest 5.
             </span>
           </div>
           {pool && pool.contributors !== null ? (
@@ -461,7 +461,7 @@ export const MarketDataExplorer: React.FC<{ onStartValuation?: () => void }> = (
             </div>
           ) : (
             <p className="text-xs text-[#6B6459]">
-              Not enough owners have shared their figures yet to show anything without risking identifying a practice. Every
+              Fewer than 10 owners have shared their figures so far, so nothing is shown yet to avoid identifying anyone. Every
               owner who values their practice and opts in makes these benchmarks better for everyone.
             </p>
           )}
