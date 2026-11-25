@@ -15,7 +15,6 @@ import {
   Plus,
   Trash2,
   ArrowRight,
-  FileDown,
   RotateCcw,
   Check,
   Building2,
@@ -714,26 +713,6 @@ export const QuickPracticeInfoSheet: React.FC<QuickPracticeInfoSheetProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <a
-              href="/assets/aistudio/sample-practice-info.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-semibold text-[#6B6459] hover:text-[#26231E] underline whitespace-nowrap"
-            >
-              <FileDown className="w-3.5 h-3.5" />
-              Practice Info PDF
-            </a>
-            <span className="text-[#C9C1B4]" aria-hidden="true">·</span>
-            <a
-              href="/assets/aistudio/sample-staffing-schedule.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-semibold text-[#6B6459] hover:text-[#26231E] underline whitespace-nowrap"
-            >
-              <FileDown className="w-3.5 h-3.5" />
-              Staffing Schedule PDF
-            </a>
-            <span className="text-[#C9C1B4]" aria-hidden="true">·</span>
             <button
               type="button"
               onClick={handleResetBlank}
@@ -821,7 +800,7 @@ export const QuickPracticeInfoSheet: React.FC<QuickPracticeInfoSheetProps> = ({
                 type="text"
                 value={practiceName}
                 onChange={(e) => setPracticeName(e.target.value)}
-                placeholder="e.g. Sample Mixed Practice"
+                placeholder="e.g. Riverside Dental Practice"
                 className="w-full px-3 py-2.5 text-sm rounded-[4px] border bg-white text-[#26231E]"
                 style={{ borderColor: 'var(--color-border)' }}
                 required
@@ -887,7 +866,7 @@ export const QuickPracticeInfoSheet: React.FC<QuickPracticeInfoSheetProps> = ({
                 type="text"
                 value={postcode}
                 onChange={(e) => setPostcode(e.target.value)}
-                placeholder="ZZ1 1AA"
+                placeholder="AB1 2CD"
                 className="w-full px-3 py-2.5 text-sm font-mono uppercase rounded-[4px] border bg-white text-[#26231E]"
                 style={{ borderColor: 'var(--color-border)' }}
               />

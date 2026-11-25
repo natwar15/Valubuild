@@ -101,13 +101,13 @@ export const HeroVisual: React.FC = () => {
                   color: 'var(--color-text-primary)',
                 }}
               >
-                Sample Mixed Practice Valuation (£)
+                Sample Practice Valuation (£)
               </h4>
               <p
                 className="text-xs"
                 style={{ color: 'var(--color-text-muted)' }}
               >
-                4-Surgery Mixed NHS/Private Practice (Northtown, ZZ1 1AA)
+                4-Surgery Mixed NHS/Private Practice (Illustrative)
               </p>
             </div>
 
@@ -159,7 +159,7 @@ export const HeroVisual: React.FC = () => {
                       color: 'var(--color-accent)',
                     }}
                   >
-                    7.00
+                    6.60
                   </span>
                   <span
                     className="text-[10px] uppercase tracking-wider font-semibold"
@@ -197,7 +197,7 @@ export const HeroVisual: React.FC = () => {
                     className="text-[10px] font-mono px-1 rounded"
                     style={{ backgroundColor: '#ECE6DC', color: 'var(--color-text-primary)' }}
                   >
-                    7.00 YP
+                    6.60 YP
                   </span>
                 </div>
                 <div
@@ -207,7 +207,7 @@ export const HeroVisual: React.FC = () => {
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  £1,700,000
+                  £1,420,000
                 </div>
               </div>
 
@@ -239,7 +239,7 @@ export const HeroVisual: React.FC = () => {
                     color: 'var(--color-accent)',
                   }}
                 >
-                  £250,000 pa
+                  £215,680 pa
                 </div>
               </div>
             </div>
@@ -250,12 +250,12 @@ export const HeroVisual: React.FC = () => {
             className="pt-2.5 flex items-center justify-between text-xs"
             style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
           >
-            <span>MV2 (6-Mo Restricted): £1.40M</span>
+            <span>MV2 (6-Mo Restricted): £1.14M</span>
             <span
               className="font-semibold"
               style={{ color: 'var(--color-accent)' }}
             >
-              Market Rent: £24,000 pa
+              Passing Rent: £25,000 pa
             </span>
           </div>
         </div>

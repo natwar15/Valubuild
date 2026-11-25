@@ -13,33 +13,33 @@ interface IntakeWizardProps {
   onCalculate: (data: DentalIntakeData) => void;
 }
 
-// 1. Sample Mixed Practice (Exact Real Bank Valuation Report Sample)
-export const SAMPLE_BANK_REPORT_PRESET: DentalIntakeData = {
-  practiceName: 'Sample Mixed Practice',
+// 1. Fictional mixed NHS/private sample practice (illustrative figures only)
+export const SAMPLE_MIXED_PRESET: DentalIntakeData = {
+  practiceName: 'Riverside Dental Practice (Sample)',
   practiceType: 'Mixed Practice',
   address: '1 Sample Street, Northtown',
   postcode: 'ZZ1 1AA',
   region: 'Yorkshire & Humber',
-  yearsEstablished: 18,
+  yearsEstablished: 20,
   surgeriesCount: 4,
   floorAreaSqFt: 2000,
   tenure: 'Leasehold',
-  passingRentPa: 24000,
+  passingRentPa: 25000,
   hasDeconRoom: true,
   hasOpgCbctRoom: true,
   disabledAccess: true,
   turnover: 1200000,
-  nhsAnnualValue: 1100000, // 2 GDS contracts (illustrative figures)
+  nhsAnnualValue: 1110000,
   udaRequirement: 30000,
-  udaRate: 37.8, // Weighted avg UDA rate
-  clawbackAmount: 132000, // Under-delivery clawback noted in bank report
+  udaRate: 37,
+  clawbackAmount: 120000,
   privateFpiTurnover: 0,
-  privatePlanTurnover: 90000, // £90k private plan noted in report
+  privatePlanTurnover: 90000,
   specialistReferralTurnover: 0,
   materialsAndLabCostPercent: 15.0,
   directAssociateTherapistCostPercent: 40.0,
   staffWagesPa: 210000,
-  adjustedEbitda: 250000, // FMOP assessed in bank report
+  adjustedEbitda: 250000,
   principalChairHoursPerWeek: 20,
   associateRemunerationModel: 'per_uda_rate',
   associateContracts: 'all_bda_with_covenants',
@@ -48,12 +48,12 @@ export const SAMPLE_BANK_REPORT_PRESET: DentalIntakeData = {
   cqcStatus: 'Good / Outstanding',
 };
 
-// 2. Mayfair Specialist & Implant Centre (Specialist Practice)
+// 2. Fictional specialist & implant centre (Specialist Practice)
 export const SPECIALIST_PRESET: DentalIntakeData = {
-  practiceName: 'West End Implantology & Specialist Centre',
+  practiceName: 'Specialist Implant Centre (Sample)',
   practiceType: 'Specialist Practice',
-  address: '42 Wimpole Street, London',
-  postcode: 'W1G 8GZ',
+  address: '2 Sample Street, London',
+  postcode: 'ZZ2 2AA',
   region: 'London & South East',
   yearsEstablished: 14,
   surgeriesCount: 6,
@@ -85,10 +85,10 @@ export const SPECIALIST_PRESET: DentalIntakeData = {
 
 // 3. Cotswold Private & Capitation Clinic (Private Practice)
 export const PRIVATE_CAPITATION_PRESET: DentalIntakeData = {
-  practiceName: 'Cotswold Private Dental Suite',
+  practiceName: 'Private Plan Dental Suite (Sample)',
   practiceType: 'Private Practice',
-  address: '14 High Street, Cirencester',
-  postcode: 'GL7 2AU',
+  address: '3 Sample Street, Westbury',
+  postcode: 'ZZ3 3AA',
   region: 'South West',
   yearsEstablished: 12,
   surgeriesCount: 4,
@@ -120,10 +120,10 @@ export const PRIVATE_CAPITATION_PRESET: DentalIntakeData = {
 
 // 4. Midlands Community GDS Dental (NHS Practice)
 export const NHS_PRESET: DentalIntakeData = {
-  practiceName: 'Midlands Community Dental Practice',
+  practiceName: 'Community Dental Practice (Sample)',
   practiceType: 'NHS Practice',
-  address: '88 High Street, Dudley',
-  postcode: 'DY1 1PY',
+  address: '4 Sample Street, Midtown',
+  postcode: 'ZZ4 4AA',
   region: 'Midlands',
   yearsEstablished: 22,
   surgeriesCount: 3,
@@ -212,21 +212,21 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalcu
           </p>
         </div>
 
-        {/* Real Sample Presets */}
+        {/* Fictional Sample Presets */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-gray-500">Load sample:</span>
           <button
             type="button"
-            onClick={() => handlePreset(SAMPLE_BANK_REPORT_PRESET)}
+            onClick={() => handlePreset(SAMPLE_MIXED_PRESET)}
             className="text-xs font-bold px-2.5 py-1.5 rounded-[4px] border transition-colors hover:bg-black/5"
             style={{
               backgroundColor: '#FAF5EE',
               borderColor: '#D6BC9E',
               color: 'var(--color-accent)',
             }}
-            title="Load the 4-surgery Northtown bank report data (Sample Mixed Practice)"
+            title="Load a fictional 4-surgery mixed NHS/private sample practice"
           >
-            ★ Sample Practice Northtown (£1.7M Report)
+            ★ Mixed NHS/Private Sample
           </button>
           <button
             type="button"
@@ -343,7 +343,7 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalcu
                   type="text"
                   value={formData.practiceName}
                   onChange={(e) => setFormData({ ...formData, practiceName: e.target.value })}
-                  placeholder="e.g. Sample Mixed Practice"
+                  placeholder="e.g. Riverside Dental Practice"
                   className="w-full px-4 py-3 rounded-[6px] border text-base outline-none"
                   style={{ backgroundColor: '#FFFFFF', borderColor: 'var(--color-border)' }}
                   required
@@ -395,7 +395,7 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalcu
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="e.g. 1 Sample Street"
+                  placeholder="e.g. 1 High Street"
                   className="w-full px-4 py-3 rounded-[6px] border text-sm outline-none"
                   style={{ backgroundColor: '#FFFFFF', borderColor: 'var(--color-border)' }}
                 />
@@ -409,7 +409,7 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalcu
                   type="text"
                   value={formData.postcode}
                   onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
-                  placeholder="e.g. ZZ1 1AA"
+                  placeholder="e.g. AB1 2CD"
                   className="w-full px-4 py-3 rounded-[6px] border text-sm uppercase font-mono outline-none"
                   style={{ backgroundColor: '#FFFFFF', borderColor: 'var(--color-border)' }}
                 />

@@ -35,7 +35,7 @@ import { HeroVisual } from './components/HeroVisual';
 import { CaptureForm } from './components/CaptureForm';
 import { CaptureModal } from './components/CaptureModal';
 import { ShareKitModal } from './components/ShareKitModal';
-import { IntakeWizard, SAMPLE_BANK_REPORT_PRESET } from './components/IntakeWizard';
+import { IntakeWizard, SAMPLE_MIXED_PRESET } from './components/IntakeWizard';
 import { ValuationDashboard } from './components/ValuationDashboard';
 import { MarketIntelligence } from './components/MarketIntelligence';
 import { RegionalBenchmark } from './components/RegionalBenchmark';
@@ -61,8 +61,8 @@ type ActiveView =
 export default function App() {
   const { firebaseUser, profile, signInWithGoogle, logout } = useAuth();
   const [activeView, setActiveView] = useState<ActiveView>('overview');
-  const [intakeData, setIntakeData] = useState<DentalIntakeData>(SAMPLE_BANK_REPORT_PRESET);
-  const [valuationResult, setValuationResult] = useState(() => calculateDentalValuation(SAMPLE_BANK_REPORT_PRESET));
+  const [intakeData, setIntakeData] = useState<DentalIntakeData>(SAMPLE_MIXED_PRESET);
+  const [valuationResult, setValuationResult] = useState(() => calculateDentalValuation(SAMPLE_MIXED_PRESET));
   const [activeReportId, setActiveReportId] = useState<number | null>(null);
   const [dataRefreshTick, setDataRefreshTick] = useState<number>(0);
 
@@ -700,11 +700,11 @@ export default function App() {
                     className="text-[17px] font-medium"
                     style={{ color: 'var(--color-text-muted)' }}
                   >
-                    Here's a real example of what the report looks like for a £1.45M mixed dental practice in the South East.
+                    Here's an illustrative example of what the report looks like for a £1.45M mixed dental practice in the South East.
                   </p>
                   <button
                     onClick={() => {
-                      setIntakeData(SAMPLE_BANK_REPORT_PRESET);
+                      setIntakeData(SAMPLE_MIXED_PRESET);
                       setActiveView('intake');
                     }}
                     className="btn-secondary !py-2 !px-4 text-xs font-bold"
