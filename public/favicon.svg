@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Roof gable left slope & eaves in charcoal #26231E -->
+  <path d="M6 34L22 18" stroke="#26231E" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Gable base / beam -->
+  <path d="M12 34H32" stroke="#26231E" stroke-width="3" stroke-linecap="round"/>
+  <!-- Ridgeline continuing to the right and rising upward as copper trend line with arrow -->
+  <path d="M22 18L28 18L40 6" stroke="#A6521C" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 6H40V14" stroke="#A6521C" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
