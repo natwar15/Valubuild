@@ -48,7 +48,7 @@ interface MonthlyUpdatesAndEmailProps {
 export const MonthlyUpdatesAndEmail: React.FC<MonthlyUpdatesAndEmailProps> = ({
   onValuationUpdated,
 }) => {
-  const { firebaseUser, profile, signInWithGoogle, updatePreferences } = useAuth();
+  const { firebaseUser, profile, requestSignIn, updatePreferences } = useAuth();
   const [briefings, setBriefings] = useState<MonthlyBriefingItem[]>([]);
   const [digests, setDigests] = useState<EmailDigestItem[]>([]);
   const [scanning, setScanning] = useState(false);
@@ -305,7 +305,7 @@ export const MonthlyUpdatesAndEmail: React.FC<MonthlyUpdatesAndEmailProps> = ({
           {!firebaseUser ? (
             <button
               type="button"
-              onClick={() => signInWithGoogle()}
+              onClick={() => requestSignIn()}
               className="btn-primary !py-2.5 !px-4 text-xs flex items-center gap-2 whitespace-nowrap"
             >
               <LogIn className="w-4 h-4" />

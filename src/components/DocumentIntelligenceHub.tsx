@@ -170,7 +170,7 @@ export const DocumentIntelligenceHub: React.FC<DocumentIntelligenceHubProps> = (
   activeReportId,
   onValuationUpdated,
 }) => {
-  const { firebaseUser, signInWithGoogle } = useAuth();
+  const { firebaseUser, requestSignIn } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<DocCategory>('accounts_report');
   const [fileName, setFileName] = useState<string>('');
   const [mimeType, setMimeType] = useState<string>('text/plain');
@@ -378,7 +378,7 @@ export const DocumentIntelligenceHub: React.FC<DocumentIntelligenceHubProps> = (
           {!firebaseUser && (
             <button
               type="button"
-              onClick={() => signInWithGoogle()}
+              onClick={() => requestSignIn()}
               className="btn-primary !py-2.5 !px-4 text-xs flex items-center gap-2 whitespace-nowrap"
             >
               <LogIn className="w-4 h-4" />

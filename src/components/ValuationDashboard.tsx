@@ -4,6 +4,7 @@ import { formatGbp } from '../utils/valuationEngine';
 import { syncSnapshotToFirestore } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
+import { POOL_CONSENT_TEXT, POOL_CONSENT_VERSION } from '../shared/consent';
 import { PracticeValuationHistory } from './PracticeValuationHistory';
 import { EbitdaScoreTrendSection } from './EbitdaScoreTrendSection';
 import {
@@ -36,14 +37,14 @@ export const ValuationDashboard: React.FC<ValuationDashboardProps> = ({
   onReportSaved,
   historyRefreshTrigger = 0,
 }) => {
-  const { firebaseUser, profile, signInWithGoogle } = useAuth();
+  const { firebaseUser, profile, requestSignIn } = useAuth();
   const [activeTab, setActiveTab] = useState<'methodologies' | 'simulator' | 'bank_dossier' | 'fixes' | 'history'>('methodologies');
   
   // Interactive Simulator State
   const [simPlanAdd, setSimPlanAdd] = useState<number>(0);
   const [simChairHours, setSimChairHours] = useState<number>(intakeData.principalChairHoursPerWeek || 20);
   const [simUtilisation, setSimUtilisation] = useState<number>(intakeData.surgeryChairUtilisationPercent || 70);
-  const [simEliminateClawback, setSimEliminateClawback] = useState<boolean>(true);
+  const [simEliminateClawback, setSimEliminateClawback] = useState<boolean>(false);
   const [shareAnonymised, setShareAnonymised] = useState<boolean>(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -84,11 +85,8 @@ export const ValuationDashboard: React.FC<ValuationDashboardProps> = ({
 
   const handleSaveDossier = async () => {
     if (!firebaseUser) {
-      try {
-        await signInWithGoogle();
-      } catch {
-        return;
-      }
+      requestSignIn('Create a free account to save this valuation privately.');
+      return;
     }
 
     setSaveStatus('saving');
@@ -111,7 +109,8 @@ export const ValuationDashboard: React.FC<ValuationDashboardProps> = ({
           ypMultiple: report.ypMultiplierAdopted,
           mv1GoodwillGbp: report.mv1MarketValueGoodwill,
           buyerReadinessScore: report.buyerReadinessScore,
-          isAnonymisedShared: shareAnonymised ?? profile?.anonymisedSharingDefault ?? true,
+          isAnonymisedShared: shareAnonymised,
+          consentVersion: shareAnonymised ? POOL_CONSENT_VERSION : undefined,
           intakeJson: intakeData,
           snapshotMonth: currentMonth,
           snapshotNote: `Dossier saved (${report.ypMultiplierAdopted} YP · ${report.buyerReadinessScore}/100)`,
@@ -223,7 +222,7 @@ export const ValuationDashboard: React.FC<ValuationDashboardProps> = ({
                 className="accent-[#A6521C]"
               />
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Include anonymised copy in UK National Pool (strips clinic name &amp; address)</span>
+              <span>{POOL_CONSENT_TEXT}</span>
             </label>
           </div>
         </div>
