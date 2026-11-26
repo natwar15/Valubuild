@@ -169,7 +169,8 @@ export const CaptureForm: React.FC<CaptureFormProps> = ({
         className="text-xs mt-2.5"
         style={{ color: 'var(--color-text-muted)' }}
       >
-        No spam, no sharing your email with buyers or brokers. Unsubscribe anytime.
+        By signing up you agree we can email you about Valubuild. No spam, no sharing your email with buyers or
+        brokers. Unsubscribe or ask us to delete your email at any time (see the privacy notice).
       </p>
     </form>
   );

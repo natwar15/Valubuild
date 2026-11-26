@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Private market data (broker listings). Never commit row-level listings.
+/data/

@@ -85,6 +85,7 @@ export async function updateUserPreferences(
     monthlyEmailOptIn?: boolean;
     anonymisedSharingDefault?: boolean;
     displayName?: string;
+    consentVersion?: string;
   }
 ) {
   try {
@@ -94,6 +95,10 @@ export async function updateUserPreferences(
     }
     if (typeof prefs.anonymisedSharingDefault === 'boolean') {
       updateValues.anonymisedSharingDefault = prefs.anonymisedSharingDefault;
+      if (prefs.anonymisedSharingDefault) {
+        updateValues.poolConsentAt = new Date();
+        updateValues.poolConsentVersion = prefs.consentVersion || null;
+      }
     }
     if (typeof prefs.displayName === 'string' && prefs.displayName.trim().length > 0) {
       updateValues.displayName = prefs.displayName.trim().slice(0, 120);
@@ -152,6 +157,8 @@ export async function saveValuationReport(params: {
   mv1GoodwillGbp: number;
   buyerReadinessScore: number;
   isAnonymisedShared: boolean;
+  /** Notice version the owner agreed to when sharing; required for the row to be pooled. */
+  shareConsentVersion?: string | null;
   intakeJson: Record<string, unknown>;
   aiPointersJson?: AiPointer[];
   valuationDriversJson?: ValuationDriver[];
@@ -159,6 +166,16 @@ export async function saveValuationReport(params: {
 }) {
   try {
     const outward = (params.postcodeOutward || 'UK').trim().toUpperCase().split(' ')[0].slice(0, 6);
+    const shared = params.isAnonymisedShared && Boolean(params.shareConsentVersion);
+    const consentFields = {
+      isAnonymisedShared: shared,
+      shareConsentAt: shared ? new Date() : null,
+      shareConsentVersion: shared ? (params.shareConsentVersion as string) : null,
+    };
+    // Keep the street address and full postcode out of storage: the valuation only
+    // needs the region and the postcode district.
+    const { address: _address, ...intakeRest } = params.intakeJson as Record<string, unknown>;
+    const intakeJson = { ...intakeRest, postcode: outward };
 
     if (params.reportId) {
       const existing = await getUserReportById(params.userUid, params.reportId);
@@ -177,8 +194,8 @@ export async function saveValuationReport(params: {
             ypMultiple: Number(params.ypMultiple.toFixed(2)),
             mv1GoodwillGbp: Math.round(params.mv1GoodwillGbp),
             buyerReadinessScore: Math.max(0, Math.min(100, Math.round(params.buyerReadinessScore))),
-            isAnonymisedShared: params.isAnonymisedShared,
-            intakeJson: params.intakeJson,
+            ...consentFields,
+            intakeJson,
             ...(params.aiPointersJson ? { aiPointersJson: params.aiPointersJson } : {}),
             ...(params.valuationDriversJson ? { valuationDriversJson: params.valuationDriversJson } : {}),
             ...(params.monthlyPolicyNotesJson ? { monthlyPolicyNotesJson: params.monthlyPolicyNotesJson } : {}),
@@ -206,9 +223,9 @@ export async function saveValuationReport(params: {
         ypMultiple: Number(params.ypMultiple.toFixed(2)),
         mv1GoodwillGbp: Math.round(params.mv1GoodwillGbp),
         buyerReadinessScore: Math.max(0, Math.min(100, Math.round(params.buyerReadinessScore))),
-        isAnonymisedShared: params.isAnonymisedShared,
+        ...consentFields,
         anonymisedCode: generateAnonymisedCode(params.region),
-        intakeJson: params.intakeJson,
+        intakeJson,
         aiPointersJson: params.aiPointersJson || [],
         valuationDriversJson: params.valuationDriversJson || [],
         monthlyPolicyNotesJson: params.monthlyPolicyNotesJson || [],
@@ -221,11 +238,22 @@ export async function saveValuationReport(params: {
   }
 }
 
-export async function toggleReportAnonymisedSharing(uid: string, reportId: number, isShared: boolean) {
+export async function toggleReportAnonymisedSharing(
+  uid: string,
+  reportId: number,
+  isShared: boolean,
+  consentVersion?: string
+) {
   try {
+    const shared = isShared && Boolean(consentVersion);
     const [updated] = await db
       .update(valuationReports)
-      .set({ isAnonymisedShared: isShared, updatedAt: new Date() })
+      .set({
+        isAnonymisedShared: shared,
+        shareConsentAt: shared ? new Date() : null,
+        shareConsentVersion: shared ? (consentVersion as string) : null,
+        updatedAt: new Date(),
+      })
       .where(and(eq(valuationReports.id, reportId), eq(valuationReports.userUid, uid)))
       .returning();
     return updated || null;
@@ -274,45 +302,6 @@ export async function updateReportAiEnrichment(
     return updated || null;
   } catch (error) {
     throw new Error('Failed to update report AI enrichment', { cause: error });
-  }
-}
-
-/**
- * Strictly anonymised national pool query.
- * NEVER selects practiceName, userUid, userId, email, or raw intakeJson containing addresses.
- */
-export async function listAnonymisedNationalReports(currentUserUid?: string) {
-  try {
-    const rows = await db
-      .select({
-        id: valuationReports.id,
-        anonymisedCode: valuationReports.anonymisedCode,
-        practiceType: valuationReports.practiceType,
-        region: valuationReports.region,
-        postcodeOutward: valuationReports.postcodeOutward,
-        surgeriesCount: valuationReports.surgeriesCount,
-        turnoverGbp: valuationReports.turnoverGbp,
-        fmopGbp: valuationReports.fmopGbp,
-        fmopMarginPercent: valuationReports.fmopMarginPercent,
-        ypMultiple: valuationReports.ypMultiple,
-        mv1GoodwillGbp: valuationReports.mv1GoodwillGbp,
-        buyerReadinessScore: valuationReports.buyerReadinessScore,
-        valuationDriversJson: valuationReports.valuationDriversJson,
-        aiPointersJson: valuationReports.aiPointersJson,
-        updatedAt: valuationReports.updatedAt,
-        ownerUid: valuationReports.userUid,
-      })
-      .from(valuationReports)
-      .where(eq(valuationReports.isAnonymisedShared, true))
-      .orderBy(desc(valuationReports.updatedAt))
-      .limit(100);
-
-    return rows.map(({ ownerUid, ...safe }) => ({
-      ...safe,
-      isMine: Boolean(currentUserUid && ownerUid === currentUserUid),
-    }));
-  } catch (error) {
-    throw new Error('Failed to fetch anonymised national dental reports', { cause: error });
   }
 }
 
