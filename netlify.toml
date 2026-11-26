@@ -1,0 +1,21 @@
+# Netlify: front end on the CDN, the Express API on Netlify Server.
+# Settings (API keys, database, email) go in Site configuration >
+# Environment variables, scoped to Functions. See README "Deploying to Netlify".
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Netlify Server needs Node 24 for the build.
+  NODE_VERSION = "24"
+
+[server]
+  # Frankfurt: the closest region to UK users, and keeps processing in the EU.
+  region = "fra"
+
+# Long-cache the hashed build assets.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
