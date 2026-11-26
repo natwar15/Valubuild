@@ -47,7 +47,7 @@ export const PracticeValuationHistory: React.FC<PracticeValuationHistoryProps> =
   activeReportId,
   refreshTrigger = 0,
 }) => {
-  const { firebaseUser, signInWithGoogle } = useAuth();
+  const { firebaseUser, requestSignIn } = useAuth();
   const [snapshots, setSnapshots] = useState<ValuationSnapshotItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
@@ -205,11 +205,11 @@ export const PracticeValuationHistory: React.FC<PracticeValuationHistoryProps> =
           </div>
           <button
             type="button"
-            onClick={() => signInWithGoogle()}
+            onClick={() => requestSignIn()}
             className="btn-primary !py-2.5 !px-4 text-xs flex items-center gap-2 whitespace-nowrap"
           >
             <LogIn className="w-4 h-4" />
-            Sign In with Google
+            Sign in or create account
           </button>
         </div>
       ) : (

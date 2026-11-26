@@ -1,5 +1,16 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  onAuthStateChanged,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updateProfile,
+  User,
+} from 'firebase/auth';
 import { auth, googleAuthProvider, syncUserProfileToFirestore } from '../firebase';
 import { apiFetch } from '../lib/api';
 
@@ -10,6 +21,7 @@ export interface DbUserProfile {
   displayName: string;
   monthlyEmailOptIn: boolean;
   anonymisedSharingDefault: boolean;
+  poolConsentAt?: string | null;
   lastDigestSentAt: string | null;
 }
 
@@ -19,13 +31,42 @@ interface AuthContextValue {
   loading: boolean;
   authError: string | null;
   signInWithGoogle: () => Promise<void>;
+  signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  resendVerification: () => Promise<void>;
+  /** Deletes all server-side data, then the sign-in account itself. */
+  deleteAccount: () => Promise<void>;
+  /** Opens the sign-in / create-account dialog. */
+  requestSignIn: (reason?: string) => void;
+  closeSignIn: () => void;
+  signInPrompt: { open: boolean; reason?: string };
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updatePreferences: (prefs: {
     monthlyEmailOptIn?: boolean;
     anonymisedSharingDefault?: boolean;
     displayName?: string;
+    consentVersion?: string;
   }) => Promise<void>;
+}
+
+/** Turns Firebase error codes into plain English. */
+export function friendlyAuthError(err: unknown): string {
+  const code = (err as { code?: string })?.code || '';
+  const map: Record<string, string> = {
+    'auth/email-already-in-use': 'An account already exists for that email. Try signing in instead.',
+    'auth/invalid-email': 'That email address does not look right.',
+    'auth/weak-password': 'Use a password of at least 8 characters.',
+    'auth/invalid-credential': 'Email or password is incorrect.',
+    'auth/wrong-password': 'Email or password is incorrect.',
+    'auth/user-not-found': 'Email or password is incorrect.',
+    'auth/too-many-requests': 'Too many attempts. Please wait a few minutes and try again.',
+    'auth/popup-closed-by-user': 'The sign-in window was closed before finishing.',
+    'auth/operation-not-allowed': 'Email sign-up is not switched on for this site yet.',
+    'auth/requires-recent-login': 'For your security, please sign out, sign in again, then retry.',
+  };
+  return map[code] || (err instanceof Error ? err.message : 'Something went wrong. Please try again.');
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -35,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<DbUserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [signInPrompt, setSignInPrompt] = useState<{ open: boolean; reason?: string }>({ open: false });
 
   const syncProfile = useCallback(async (user: User | null) => {
     if (!user) {
@@ -81,6 +123,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signUpWithEmail = async (email: string, password: string, displayName?: string) => {
+    setAuthError(null);
+    const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    if (displayName?.trim()) {
+      await updateProfile(cred.user, { displayName: displayName.trim().slice(0, 120) });
+    }
+    await sendEmailVerification(cred.user).catch(() => undefined);
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    setAuthError(null);
+    await signInWithEmailAndPassword(auth, email.trim(), password);
+  };
+
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email.trim());
+  };
+
+  const resendVerification = async () => {
+    if (auth.currentUser) await sendEmailVerification(auth.currentUser);
+  };
+
+  const deleteAccount = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    const res = await apiFetch<{ authDeleted?: boolean }>('/api/me', { method: 'DELETE' });
+    if (res.authDeleted) await signOut(auth);
+    else await deleteUser(user);
+    setProfile(null);
+  };
+
+  const requestSignIn = (reason?: string) => setSignInPrompt({ open: true, reason });
+  const closeSignIn = () => setSignInPrompt({ open: false });
+
   const logout = async () => {
     await signOut(auth);
     setProfile(null);
@@ -94,6 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     monthlyEmailOptIn?: boolean;
     anonymisedSharingDefault?: boolean;
     displayName?: string;
+    consentVersion?: string;
   }) => {
     const data = await apiFetch<{ user: DbUserProfile }>('/api/me/preferences', {
       method: 'PATCH',
@@ -117,6 +194,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         authError,
         signInWithGoogle,
+        signUpWithEmail,
+        signInWithEmail,
+        resetPassword,
+        resendVerification,
+        deleteAccount,
+        requestSignIn,
+        closeSignIn,
+        signInPrompt,
         logout,
         refreshProfile,
         updatePreferences,

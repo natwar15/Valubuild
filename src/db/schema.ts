@@ -15,8 +15,13 @@ export const users = pgTable('users', {
   uid: text('uid').notNull().unique(),
   email: text('email').notNull(),
   displayName: text('display_name').notNull().default('Dental Principal'),
-  monthlyEmailOptIn: boolean('monthly_email_opt_in').notNull().default(true),
-  anonymisedSharingDefault: boolean('anonymised_sharing_default').notNull().default(true),
+  // Off by default: marketing email needs opt-in consent (PECR).
+  monthlyEmailOptIn: boolean('monthly_email_opt_in').notNull().default(false),
+  // Off by default: sharing into the pooled benchmarks needs explicit opt-in consent.
+  anonymisedSharingDefault: boolean('anonymised_sharing_default').notNull().default(false),
+  // When the user last agreed to the pooling terms, and which version of the privacy notice they saw.
+  poolConsentAt: timestamp('pool_consent_at'),
+  poolConsentVersion: text('pool_consent_version'),
   lastDigestSentAt: timestamp('last_digest_sent_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -40,6 +45,10 @@ export const valuationReports = pgTable('valuation_reports', {
   mv1GoodwillGbp: integer('mv1_goodwill_gbp').notNull(),
   buyerReadinessScore: integer('buyer_readiness_score').notNull(),
   isAnonymisedShared: boolean('is_anonymised_shared').notNull().default(false),
+  // Proof of opt-in for this report. Rows shared before versioned consent existed have
+  // NULL here and are left out of the pool until the owner opts in again.
+  shareConsentAt: timestamp('share_consent_at'),
+  shareConsentVersion: text('share_consent_version'),
   anonymisedCode: text('anonymised_code').notNull(),
   intakeJson: jsonb('intake_json').$type<Record<string, unknown>>().notNull(),
   aiPointersJson: jsonb('ai_pointers_json').$type<
@@ -163,12 +172,51 @@ export const emailDigestLogs = pgTable('email_digest_logs', {
   sentAt: timestamp('sent_at').defaultNow().notNull(),
 });
 
+/**
+ * Quick-valuation submissions (6-question intake). Stored under an anonymised
+ * alias chosen or generated in the browser; the real practice name is never asked for.
+ * Only the postcode AREA (e.g. "LS") is kept, never the full postcode or district.
+ * Rows with shareConsent = true feed the pooled benchmarks, as aggregates only.
+ */
+export const practiceSubmissions = pgTable('practice_submissions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  userUid: text('user_uid').notNull(),
+  alias: text('alias').notNull(),
+  postcodeArea: text('postcode_area').notNull(),
+  region: text('region').notNull(),
+  practiceType: text('practice_type').notNull(),
+  surgeries: integer('surgeries').notNull(),
+  tenure: text('tenure').notNull(),
+  feesGbp: integer('fees_gbp').notNull(),
+  nhsPct: integer('nhs_pct').notNull(),
+  privatePct: integer('private_pct').notNull(),
+  planPct: integer('plan_pct').notNull(),
+  principalDaysPerWeek: doublePrecision('principal_days_per_week').notNull(),
+  ownerEbitdaGbp: integer('owner_ebitda_gbp'),
+  // Optional: a professional valuation, offer or agreed sale price the owner has had.
+  reportedValueGbp: integer('reported_value_gbp'),
+  reportedValueKind: text('reported_value_kind'), // valuation | offer | sale
+  reportedValueYear: integer('reported_value_year'),
+  estimateLowGbp: integer('estimate_low_gbp').notNull(),
+  estimateMidGbp: integer('estimate_mid_gbp').notNull(),
+  estimateHighGbp: integer('estimate_high_gbp').notNull(),
+  shareConsent: boolean('share_consent').notNull().default(false),
+  shareConsentAt: timestamp('share_consent_at'),
+  shareConsentVersion: text('share_consent_version'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   reports: many(valuationReports),
   snapshots: many(valuationSnapshots),
   documents: many(uploadedDocuments),
   questions: many(adaptiveQuestions),
   digests: many(emailDigestLogs),
+  submissions: many(practiceSubmissions),
 }));
 
 export const valuationReportsRelations = relations(valuationReports, ({ one, many }) => ({
