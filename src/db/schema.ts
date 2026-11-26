@@ -210,6 +210,24 @@ export const practiceSubmissions = pgTable('practice_submissions', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+/**
+ * Broker documents the owner chose to keep after extraction. Off by default:
+ * normally a document is read in memory, its figures returned, and the file
+ * discarded. Private to the owner, never pooled, removed with the account.
+ */
+export const keptDocuments = pgTable('kept_documents', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  userUid: text('user_uid').notNull(),
+  docType: text('doc_type').notNull(), // accounts | nhs_schedule | clinician_income | plan_schedule
+  fileName: text('file_name').notNull(),
+  mimeType: text('mime_type').notNull(),
+  contentBase64: text('content_base64').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   reports: many(valuationReports),
   snapshots: many(valuationSnapshots),

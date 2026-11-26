@@ -11,6 +11,7 @@ import { getGeminiClient } from './src/lib/gemini.ts';
 import { adminAuth } from './src/lib/firebase-admin.ts';
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
 import { registerMarketRoutes } from './src/server/marketRoutes.ts';
+import { registerBrokerDocRoutes } from './src/server/brokerDocRoutes.ts';
 import { recordPoolConsent } from './src/db/poolQueries.ts';
 import { POOL_CONSENT_VERSION } from './src/shared/consent.ts';
 import {
@@ -256,6 +257,7 @@ async function startServer() {
   // individual practices (postcode district, fees, AI notes). Pooled figures are
   // now served as suppressed aggregates by /api/pool/summary (src/server/marketRoutes.ts).
   registerMarketRoutes(app);
+  registerBrokerDocRoutes(app);
 
   // =========================================================================
   // 3. PRACTICE VALUATION HISTORY SNAPSHOTS

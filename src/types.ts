@@ -60,6 +60,15 @@ export interface DentalIntakeData {
   cqcStatus: 'Good / Outstanding' | 'Requires Improvement' | 'Inspection Due';
   // Optional Broker Info & Staffing Schedule enrichment
   quickSchedule?: QuickPracticeScheduleData;
+  // Patients registered on a plan (from the plan schedule). Informational.
+  planPatientCount?: number;
+  // Which broker documents filled this intake (no file contents or names).
+  documentEvidence?: Array<{
+    docType: 'accounts' | 'nhs_schedule' | 'clinician_income' | 'plan_schedule';
+    source: 'upload' | 'manual' | 'not_applicable';
+    period?: string;
+    appliedAt: string;
+  }>;
 }
 
 export interface ClinicianScheduleRow {

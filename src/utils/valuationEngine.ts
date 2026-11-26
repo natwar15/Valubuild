@@ -56,6 +56,15 @@ const clamp = (x: number, lo: number, hi: number) => Math.min(Math.max(x, lo), h
 function principalFeeShare(data: DentalIntakeData): number {
   const hours = Math.max(data.principalChairHoursPerWeek || 0, 0);
   const clinicians = data.quickSchedule?.clinicians ?? [];
+  // Income per clinician (e.g. from the practice software report a broker asks
+  // for) is the most direct measure; hours are the fallback.
+  const income = (c: (typeof clinicians)[number]) =>
+    (c.privateFpiRevenue || 0) + (c.patientPlanRevenue || 0) + (c.allocatedUdas || 0) * (data.udaRate || 0);
+  const totalIncome = clinicians.reduce((s, c) => s + income(c), 0);
+  if (data.documentEvidence?.some((e) => e.docType === 'clinician_income' && e.source !== 'not_applicable') && totalIncome > 0) {
+    const principalIncome = clinicians.filter((c) => c.role === 'Principal').reduce((s, c) => s + income(c), 0);
+    return clamp(principalIncome / totalIncome, 0, 1);
+  }
   const totalHours = clinicians.reduce((s, c) => s + (c.hoursPerWeek || 0), 0);
   if (totalHours > 0) {
     const principalHours = clinicians
