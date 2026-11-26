@@ -11,6 +11,7 @@ import { getGeminiClient } from './src/lib/gemini.ts';
 import { adminAuth } from './src/lib/firebase-admin.ts';
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
 import { registerMarketRoutes } from './src/server/marketRoutes.ts';
+import { registerLeadRoutes } from './src/server/leadEmail.ts';
 import { recordPoolConsent } from './src/db/poolQueries.ts';
 import { POOL_CONSENT_VERSION } from './src/shared/consent.ts';
 import {
@@ -79,6 +80,9 @@ function extractSafeHttpUrl(url: unknown): string | null {
 async function startServer() {
   const app = express();
   const server = http.createServer(app);
+  // Behind Cloud Run / a load balancer, use the client's address (not the
+  // proxy's) for the per-IP rate limits.
+  if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
   // Bounded body limit for document uploads (PDFs, CSVs, images, text)
   app.use(express.json({ limit: '10mb' }));
@@ -256,6 +260,7 @@ async function startServer() {
   // individual practices (postcode district, fees, AI notes). Pooled figures are
   // now served as suppressed aggregates by /api/pool/summary (src/server/marketRoutes.ts).
   registerMarketRoutes(app);
+  registerLeadRoutes(app);
 
   // =========================================================================
   // 3. PRACTICE VALUATION HISTORY SNAPSHOTS

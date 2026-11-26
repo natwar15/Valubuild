@@ -21,6 +21,7 @@ export const CaptureForm: React.FC<CaptureFormProps> = ({
   const [honeypot, setHoneypot] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [checklistSent, setChecklistSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +48,20 @@ export const CaptureForm: React.FC<CaptureFormProps> = ({
         source: tierName ? `${source} (${tierName})` : source,
         tier: tierName,
       });
+
+      // Send the promised checklist. A failure here doesn't undo the sign-up;
+      // the success message just stops promising an email right now.
+      try {
+        const r = await fetch('/api/leads/checklist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: trimmed }),
+        });
+        const body = await r.json().catch(() => ({}));
+        setChecklistSent(Boolean(r.ok && body?.sent));
+      } catch {
+        setChecklistSent(false);
+      }
 
       setStatus('success');
       if (onSuccess) {
@@ -88,7 +103,9 @@ export const CaptureForm: React.FC<CaptureFormProps> = ({
               className="text-sm leading-relaxed"
               style={{ color: 'var(--color-text-primary)' }}
             >
-              You're on the founding-owner list. Within 48 hours we'll email you the 12-point buyer-readiness checklist so you can score your own shop against what PE deal teams audit — and you'll be first in line for your free valuation report when the dashboard opens.
+              {checklistSent
+                ? "You're on the founding-owner list. We've just emailed you the 12-point buyer-readiness checklist (check your spam folder if it isn't there in a few minutes), and you'll be first in line for your free valuation report when the dashboard opens."
+                : "You're on the founding-owner list. We'll email you the 12-point buyer-readiness checklist shortly, and you'll be first in line for your free valuation report when the dashboard opens."}
             </p>
             {tierName && (
               <div

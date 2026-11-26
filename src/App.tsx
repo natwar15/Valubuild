@@ -1293,10 +1293,10 @@ export default function App() {
                             color: 'var(--color-text-primary)',
                           }}
                         >
-                          £199
+                          Free
                         </span>
                         <span className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                          / mo
+                          no card needed
                         </span>
                       </div>
                       <p className="text-sm mb-6 font-medium" style={{ color: 'var(--color-text-muted)' }}>
@@ -1325,7 +1325,7 @@ export default function App() {
 
                     <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--color-border)' }}>
                       <button
-                        onClick={() => handleOpenCapture('Pricing Tier 1', 'Readiness Starter (£199/mo)')}
+                        onClick={() => handleOpenCapture('Pricing Tier 1', 'Readiness Starter (Free)')}
                         className="btn-secondary w-full"
                       >
                         Get my free valuation report
@@ -1372,7 +1372,7 @@ export default function App() {
                             color: 'var(--color-text-primary)',
                           }}
                         >
-                          £499
+                          £99
                         </span>
                         <span className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
                           / mo
@@ -1404,7 +1404,7 @@ export default function App() {
 
                     <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--color-border)' }}>
                       <button
-                        onClick={() => handleOpenCapture('Pricing Tier 2', 'Exit Dashboard (£499/mo)')}
+                        onClick={() => handleOpenCapture('Pricing Tier 2', 'Exit Dashboard (£99/mo)')}
                         className="btn-primary w-full"
                       >
                         Get my free valuation report
@@ -1658,7 +1658,7 @@ export default function App() {
                         className="text-[18px] font-semibold leading-[1.35]"
                         style={{ color: 'var(--color-text-primary)' }}
                       >
-                        Is £499 a month worth it for a dental practice?
+                        Is £99 a month worth it for a dental practice?
                       </span>
                       <ChevronDown
                         className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${

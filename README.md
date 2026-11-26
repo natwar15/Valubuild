@@ -15,6 +15,20 @@ All sample practices in the app are fictional and their figures are illustrative
 - **Data files** live outside git. Set `MARKET_DATA_DIR` to a folder with `listings_all.csv` and `market_index.csv`; without it a synthetic sample is shown.
 - **Privacy**: a draft notice is at the "Privacy" link; users can withdraw consent, delete a valuation, or delete their account and data.
 
+## Pricing
+
+Shown on the landing page (`src/App.tsx`, pricing section and FAQ). There is no billing integration yet; every button opens the founding-owner sign-up.
+
+| Tier | Price |
+| --- | --- |
+| Readiness Starter | Free |
+| Exit Dashboard | £99 / month |
+| Pre-Sale Sprint | £15,000 one-time |
+
+## Founding-owner sign-up email
+
+The sign-up form saves the email to the Firestore `leads` collection and then calls `POST /api/leads/checklist`, which emails the 12-point buyer-readiness checklist (`src/server/leadEmail.ts`). It needs `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM`; without them no email is sent and the form says the checklist will follow later. The endpoint is limited to 5 requests per IP per hour and one email per address per day.
+
 ## Stack
 
 | Part | Technology |
