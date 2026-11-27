@@ -38,8 +38,8 @@ import {
   ValuationDriver,
 } from './src/db/queries.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Not named __filename/__dirname: Netlify's bundler injects those names.
+const serverDir = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 
 function escapeHtml(input: string): string {
@@ -1343,7 +1343,7 @@ Current practice context: ${practiceContext}`,
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, 'dist');
+    const distPath = path.join(serverDir, 'dist');
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
