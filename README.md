@@ -17,13 +17,18 @@ All sample practices in the app are fictional and their figures are illustrative
 
 ## Pricing
 
-Shown on the landing page (`src/App.tsx`, pricing section and FAQ). There is no billing integration yet; every button opens the founding-owner sign-up.
+Plans live in `src/shared/pricing.ts` and are rendered by `src/components/PricingSection.tsx`. There is no billing integration yet; every paid button opens the early-access sign-up with the plan name. Reasoning and rollout order: `docs/monetisation-plan.md`.
 
-| Tier | Price |
-| --- | --- |
-| Readiness Starter | Free |
-| Exit Dashboard | £99 / month |
-| Pre-Sale Sprint | £15,000 one-time |
+| Plan | Who | Price |
+| --- | --- | --- |
+| Free account | Anyone in UK dentistry | Free |
+| Full Valuation Report | Owners | £149 per report (£299 broker-ready pack) |
+| Exit Dashboard | Owners | £99 / month |
+| Pre-Sale Sprint | Owners | £15,000 one-time |
+| Professional | Brokers, accountants, buyers | £149 / month |
+| Firm | Brokerages, lenders, corporates | £499 / month (5 seats) |
+
+Consented introductions to brokers, lenders and buyers (referral fees) and anonymised market reports come later; see the plan.
 
 ## Founding-owner sign-up email
 
