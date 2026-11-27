@@ -1,5 +1,6 @@
 import { defineConfig } from 'drizzle-kit';
 import * as dotenv from 'dotenv';
+import { sqlSsl } from './ssl.ts';
 
 dotenv.config();
 
@@ -31,7 +32,7 @@ export default defineConfig({
     user,
     password,
     database: sqlDbName,
-    ssl: false,
+    ssl: sqlSsl(),
   },
   verbose: true,
 });

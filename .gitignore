@@ -10,3 +10,6 @@ coverage/
 # Private market data (broker listings). Never commit row-level listings.
 data/
 /data/
+
+# Netlify CLI link state
+.netlify

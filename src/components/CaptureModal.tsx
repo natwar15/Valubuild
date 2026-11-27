@@ -65,7 +65,7 @@ export const CaptureModal: React.FC<CaptureModalProps> = ({
           >
             {tierName
               ? `You'll get our 12-point buyer-readiness checklist right away, and priority onboarding for the ${tierName} tier as soon as we open.`
-              : 'Sign up now and you’ll get our 12-point buyer-readiness checklist right away, plus your full valuation report free when we open, before anyone pays a dollar.'}
+              : 'Sign up now and you’ll get our 12-point buyer-readiness checklist right away, plus your full valuation report free when we open, before anyone pays a pound.'}
           </p>
         </div>
 
