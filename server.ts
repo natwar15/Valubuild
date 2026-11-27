@@ -10,6 +10,7 @@ import { getGeminiClient } from './src/lib/gemini.ts';
 import { adminAuth } from './src/lib/firebase-admin.ts';
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
 import { registerMarketRoutes } from './src/server/marketRoutes.ts';
+import { registerBrokerDocRoutes } from './src/server/brokerDocRoutes.ts';
 import { registerLeadRoutes } from './src/server/leadEmail.ts';
 import { prepareMarketDataDir } from './src/server/marketDataSync.ts';
 import { recordPoolConsent } from './src/db/poolQueries.ts';
@@ -269,6 +270,7 @@ async function startServer() {
   // individual practices (postcode district, fees, AI notes). Pooled figures are
   // now served as suppressed aggregates by /api/pool/summary (src/server/marketRoutes.ts).
   registerMarketRoutes(app);
+  registerBrokerDocRoutes(app);
   registerLeadRoutes(app);
 
   // =========================================================================

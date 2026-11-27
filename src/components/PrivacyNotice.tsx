@@ -63,6 +63,13 @@ export const PrivacyNotice: React.FC = () => (
         paid API terms, which don't allow it to use them to train its models. Payroll and staff documents can contain your team's personal
         data: please remove names before uploading, or upload totals only.
       </li>
+      <li>
+        The broker document pack (accounts, NHS schedule, private income per clinician, plan schedules) is read the same
+        way, but the file itself is discarded once its figures are read, unless you tick "keep a private copy". The
+        figures are shown to you to check and are saved only if you save the report. Clinicians are recorded by role,
+        not name. Kept documents are visible only to you, can be deleted at any time, are removed when you delete your
+        account, and are never added to the anonymised pool.
+      </li>
       <li>The voice advisor and the follow-up questions are also processed by Gemini. Answers you give to follow-up questions are saved with your report.</li>
     </ul>
     <H>Email sign-ups</H>

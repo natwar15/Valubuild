@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { DentalIntakeData, PracticeType, UkRegion } from '../types';
 import { UK_REGIONAL_BENCHMARKS } from '../data/ukMarketData';
 import { QuickPracticeInfoSheet } from './QuickPracticeInfoSheet';
+import { BrokerDocumentPack } from './BrokerDocumentPack';
 import {
   ArrowRight,
   ClipboardList,
+  FolderOpen,
   SlidersHorizontal,
 } from 'lucide-react';
 
@@ -159,7 +161,7 @@ export const NHS_PRESET: DentalIntakeData = {
 
 export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalculate }) => {
   const [formData, setFormData] = useState<DentalIntakeData>(initialData);
-  const [intakeMode, setIntakeMode] = useState<'quick_sheet' | 'summary_form'>('quick_sheet');
+  const [intakeMode, setIntakeMode] = useState<'broker_docs' | 'quick_sheet' | 'summary_form'>('quick_sheet');
   const [presetKey, setPresetKey] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'profile' | 'revenue' | 'diligence'>('profile');
 
@@ -171,6 +173,15 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalcu
 
   const handleQuickCalculate = (data: DentalIntakeData) => {
     setFormData(data);
+    onCalculate(data);
+  };
+
+  // Documents give the actual figures (incl. the accounts' profit), so the
+  // result goes to the summary form rather than the quick sheet, which would
+  // re-derive profit from its staffing schedule.
+  const handleDocumentsApplied = (data: DentalIntakeData) => {
+    setFormData(data);
+    setPresetKey((k) => k + 1);
     onCalculate(data);
   };
 
@@ -262,9 +273,21 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalcu
       {/* Mode Switcher: Quick Broker Sheet vs Summary 3-Step Intake */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div
-          className="inline-flex items-center gap-1 p-1 rounded-[6px] bg-[#FAF8F4] border"
+          className="inline-flex flex-wrap items-center gap-1 p-1 rounded-[6px] bg-[#FAF8F4] border"
           style={{ borderColor: 'var(--color-border)' }}
         >
+          <button
+            type="button"
+            onClick={() => setIntakeMode('broker_docs')}
+            className={`px-3.5 py-2 text-xs font-semibold rounded-[4px] transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+              intakeMode === 'broker_docs'
+                ? 'bg-[#26231E] text-white'
+                : 'text-[#6B6459] hover:text-[#26231E]'
+            }`}
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            From Broker Documents (4 Uploads)
+          </button>
           <button
             type="button"
             onClick={() => setIntakeMode('quick_sheet')}
@@ -292,11 +315,15 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ initialData, onCalcu
         </div>
 
         <span className="text-xs text-[#6B6459]">
-          Auto-calculates Employer NI, 3% pension, clinician pay &amp; FMOP
+          {intakeMode === 'broker_docs'
+            ? 'Accounts, NHS schedule, private income per clinician & plan schedules'
+            : 'Auto-calculates Employer NI, 3% pension, clinician pay & FMOP'}
         </span>
       </div>
 
-      {intakeMode === 'quick_sheet' ? (
+      {intakeMode === 'broker_docs' ? (
+        <BrokerDocumentPack current={formData} onApply={handleDocumentsApplied} />
+      ) : intakeMode === 'quick_sheet' ? (
         <QuickPracticeInfoSheet
           key={presetKey}
           initialData={formData}
