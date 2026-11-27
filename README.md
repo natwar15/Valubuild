@@ -15,6 +15,20 @@ All sample practices in the app are fictional and their figures are illustrative
 - **Data files** live outside git. Set `MARKET_DATA_DIR` to a folder with `listings_all.csv` and `market_index.csv`; without it a synthetic sample is shown.
 - **Privacy**: a draft notice is at the "Privacy" link; users can withdraw consent, delete a valuation, or delete their account and data.
 
+## Pricing
+
+Shown on the landing page (`src/App.tsx`, pricing section and FAQ). There is no billing integration yet; every button opens the founding-owner sign-up.
+
+| Tier | Price |
+| --- | --- |
+| Readiness Starter | Free |
+| Exit Dashboard | £99 / month |
+| Pre-Sale Sprint | £15,000 one-time |
+
+## Founding-owner sign-up email
+
+The sign-up form saves the email to the Firestore `leads` collection and then calls `POST /api/leads/checklist`, which emails the 12-point buyer-readiness checklist (`src/server/leadEmail.ts`). It needs `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM`; without them no email is sent and the form says the checklist will follow later. The endpoint is limited to 5 requests per IP per hour and one email per address per day.
+
 ## Stack
 
 | Part | Technology |
@@ -45,8 +59,31 @@ The site loads without a database or Gemini key, but sign-in, saving reports and
 
 ```bash
 npm run build            # builds the front end into dist/
-npm start                # serves the API and dist/ on port 3000
+npm start                # serves the API and dist/ on port 3000 (or $PORT)
 ```
+
+Behind Cloud Run or another proxy, set `TRUST_PROXY=1` so the per-IP rate limits see the visitor's address.
+
+## Deploying to Netlify
+
+`netlify.toml` builds the front end into `dist/` (served from Netlify's CDN) and runs the Express API, including the live-voice WebSocket, on [Netlify Server](https://docs.netlify.com/build/server/) in Frankfurt. The entry is `netlify/server/index.ts` and it handles `/api/*`. Netlify Server is in Early Access and needs a credit-based Netlify plan.
+
+1. In Netlify, **Add new project > Import an existing project**, pick this GitHub repo. The build settings come from `netlify.toml`.
+2. Under **Site configuration > Environment variables**, add the variables below. Give the `VITE_` one the **Builds** scope and the rest the **Functions** scope. Redeploy after changing any of them.
+3. Run `npm run db:push` again (adds the `market_data_files` table), then `MARKET_DATA_DIR=/path/to/market-data npm run market:upload` once from your computer. The listings stay out of git and the server copies them from Postgres at startup.
+
+| Variable | Needed for |
+| --- | --- |
+| `GEMINI_API_KEY` | Every AI feature. Use a key on a paid plan, because the privacy notice says uploads aren't used for training |
+| `VITE_GOOGLE_MAPS_API_KEY` | The regional map (build time; restrict the key to your Netlify domain) |
+| `SQL_HOST`, `SQL_DB_NAME`, `SQL_USER`, `SQL_PASSWORD` | Postgres. The database must accept connections from the internet, because Netlify has no fixed IP addresses |
+| `SQL_SSL` | `true` for Supabase, Neon and most hosted Postgres; `no-verify` for Cloud SQL's public IP. Don't connect over the internet without it |
+| `FIREBASE_SERVICE_ACCOUNT` | Account deletion (removing Firestore data and the sign-in account). Firebase console > Project settings > Service accounts > Generate new private key, then base64-encode the file (`base64 -i key.json`) and paste the result |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | The sign-up checklist email and monthly emails |
+
+Also add the Netlify domain (and any custom domain) under Firebase console > Authentication > Settings > **Authorized domains**, or sign-in will fail.
+
+Netlify Server limits to know about: a response must start within 20 seconds (a long Gemini document analysis could hit this), and outgoing connections idle for 60 seconds are closed (the Postgres pool closes idle connections after 30).
 
 ## Scripts
 
@@ -58,6 +95,7 @@ npm start                # serves the API and dist/ on port 3000
 | `npm run lint` | Type-check with `tsc --noEmit` |
 | `npm test` | Unit tests for the market statistics, suppression and parsing |
 | `npm run db:push` | Push the Drizzle schema to Postgres (uses `SQL_ADMIN_*`) |
+| `npm run market:upload` | Copy the market data CSVs from `MARKET_DATA_DIR` into Postgres for hosts without them on disk |
 
 ## Notes
 

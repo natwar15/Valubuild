@@ -3,7 +3,6 @@ import express from 'express';
 import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createServer as createViteServer } from 'vite';
 import { WebSocketServer, WebSocket } from 'ws';
 import nodemailer from 'nodemailer';
 import { Modality, Type } from '@google/genai';
@@ -12,6 +11,8 @@ import { adminAuth } from './src/lib/firebase-admin.ts';
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
 import { registerMarketRoutes } from './src/server/marketRoutes.ts';
 import { registerBrokerDocRoutes } from './src/server/brokerDocRoutes.ts';
+import { registerLeadRoutes } from './src/server/leadEmail.ts';
+import { prepareMarketDataDir } from './src/server/marketDataSync.ts';
 import { recordPoolConsent } from './src/db/poolQueries.ts';
 import { POOL_CONSENT_VERSION } from './src/shared/consent.ts';
 import {
@@ -39,7 +40,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 function escapeHtml(input: string): string {
   return String(input || '')
@@ -80,6 +81,18 @@ function extractSafeHttpUrl(url: unknown): string | null {
 async function startServer() {
   const app = express();
   const server = http.createServer(app);
+  // Per-IP rate limits need the client's address. Behind Cloud Run or a load
+  // balancer set TRUST_PROXY=1 so Express reads it from X-Forwarded-For.
+  // Netlify Server already passes the client address, so leave it unset there
+  // (trusting the header would let callers spoof it).
+  if (process.env.TRUST_PROXY) {
+    const hops = Number(process.env.TRUST_PROXY);
+    app.set('trust proxy', Number.isFinite(hops) ? hops : process.env.TRUST_PROXY);
+  }
+
+  // Netlify (and other hosts without a disk copy of the listings) load them
+  // from Postgres into a temp folder before the first request.
+  await prepareMarketDataDir();
 
   // Bounded body limit for document uploads (PDFs, CSVs, images, text)
   app.use(express.json({ limit: '10mb' }));
@@ -258,6 +271,7 @@ async function startServer() {
   // now served as suppressed aggregates by /api/pool/summary (src/server/marketRoutes.ts).
   registerMarketRoutes(app);
   registerBrokerDocRoutes(app);
+  registerLeadRoutes(app);
 
   // =========================================================================
   // 3. PRACTICE VALUATION HISTORY SNAPSHOTS
@@ -1322,6 +1336,7 @@ Current practice context: ${practiceContext}`,
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
 
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

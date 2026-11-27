@@ -24,7 +24,9 @@ export const PrivacyNotice: React.FC = () => (
 
     <H>Who we are</H>
     <p>
-      Valubuild is run by <strong>[operator legal name]</strong>, <strong>[address]</strong>, ICO registration{' '}
+      Valubuild is run by <strong>Smile Oasis Limited</strong>, a company registered in England and Wales (company
+      number 16025728), registered office Chester House, Lloyd Drive, Cheshire Oaks Business Park, Ellesmere Port,
+      Cheshire, CH65 9HQ. We are the controller of the personal data described here. ICO registration{' '}
       <strong>[number]</strong>. Contact us about your data at <strong>[privacy email]</strong>.
     </p>
 
@@ -73,7 +75,8 @@ export const PrivacyNotice: React.FC = () => (
     <H>Email sign-ups</H>
     <p>
       If you leave your email for the founding-owner list, we keep the email and where you signed up, to send you
-      Valubuild updates (lawful basis: consent). Ask us to remove it at any time; deleting your account also removes it.
+      Valubuild updates, starting with the buyer-readiness checklist (lawful basis: consent). The emails are sent
+      through our email provider. Ask us to remove it at any time; deleting your account also removes it.
     </p>
     <H>The anonymised pool (optional)</H>
     <p>
@@ -102,7 +105,10 @@ export const PrivacyNotice: React.FC = () => (
 
     <H>Where it's stored and for how long</H>
     <p>
-      Data is stored with Google Cloud and Firebase in <strong>[region]</strong>. We keep your account data until you
+      The website and its server run on Netlify, with the server in Frankfurt (EU). Your account and saved valuations
+      are stored with Google Cloud and Firebase in <strong>[region]</strong>. Netlify and Google are US companies; where
+      they process data outside the UK they do so under the UK's approved international data transfer safeguards.
+      We keep your account data until you
       delete it. You can delete a single valuation, or your whole account and everything saved to it, at any time from
       the valuation page.
     </p>

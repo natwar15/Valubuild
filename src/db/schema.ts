@@ -246,3 +246,15 @@ export const valuationReportsRelations = relations(valuationReports, ({ one, man
   documents: many(uploadedDocuments),
   questions: many(adaptiveQuestions),
 }));
+
+/**
+ * Copies of the market data files (listings_all.csv, market_index.csv) for
+ * hosts with no persistent disk, such as Netlify. Loaded into a temp folder at
+ * startup; see src/server/marketDataSync.ts and `npm run market:upload`.
+ * Server-side only: rows are never sent to the browser.
+ */
+export const marketDataFiles = pgTable('market_data_files', {
+  name: text('name').primaryKey(),
+  content: text('content').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
