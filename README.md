@@ -70,10 +70,11 @@ Behind Cloud Run or another proxy, set `TRUST_PROXY=1` so the per-IP rate limits
 
 1. In Netlify, **Add new project > Import an existing project**, pick this GitHub repo. The build settings come from `netlify.toml`.
 2. Under **Site configuration > Environment variables**, add the variables below. Give the `VITE_` one the **Builds** scope and the rest the **Functions** scope. Redeploy after changing any of them.
-3. Run `npm run db:push` again (adds the `market_data_files` table), then `MARKET_DATA_DIR=/path/to/market-data npm run market:upload` once from your computer. The listings stay out of git and the server copies them from Postgres at startup.
+3. Market data: the repo carries an **encrypted** copy of the listings (`src/server/generated/marketDataSealed.ts`). Set `MARKET_DATA_KEY` (Functions scope) and the server decrypts it into a temp folder at startup, so no database is needed. To refresh the data, run `MARKET_DATA_KEY=... MARKET_DATA_DIR=/path/to/market-data npm run market:seal` and commit the regenerated file. Without the key, the database copy (`npm run market:upload`, after `npm run db:push`) is used, and failing that a synthetic sample.
 
 | Variable | Needed for |
 | --- | --- |
+| `MARKET_DATA_KEY` | Decrypts the bundled market data (base64, 32 bytes). Already set on valubuild-lbae |
 | `GEMINI_API_KEY` | Every AI feature. Use a key on a paid plan, because the privacy notice says uploads aren't used for training |
 | `VITE_GOOGLE_MAPS_API_KEY` | The regional map (build time; restrict the key to your Netlify domain) |
 | `SQL_HOST`, `SQL_DB_NAME`, `SQL_USER`, `SQL_PASSWORD` | Postgres. The database must accept connections from the internet, because Netlify has no fixed IP addresses |
@@ -95,6 +96,7 @@ Netlify Server limits to know about: a response must start within 20 seconds (a 
 | `npm run lint` | Type-check with `tsc --noEmit` |
 | `npm test` | Unit tests for the market statistics, suppression and parsing |
 | `npm run db:push` | Push the Drizzle schema to Postgres (uses `SQL_ADMIN_*`) |
+| `npm run market:seal` | Re-encrypt the market data CSVs into the bundled copy (needs `MARKET_DATA_KEY`) |
 | `npm run market:upload` | Copy the market data CSVs from `MARKET_DATA_DIR` into Postgres for hosts without them on disk |
 
 ## Notes

@@ -12,7 +12,8 @@
     "lint": "tsc --noEmit",
     "db:push": "drizzle-kit push --config src/db/drizzle.config.ts",
     "test": "tsx --test tests/*.test.ts",
-    "market:upload": "tsx scripts/uploadMarketData.ts"
+    "market:upload": "tsx scripts/uploadMarketData.ts",
+    "market:seal": "tsx scripts/sealMarketData.ts"
   },
   "dependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
