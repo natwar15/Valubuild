@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import PricingSection from './components/PricingSection';
 import {
   CircleDollarSign,
   ClipboardCheck,
@@ -1243,243 +1244,7 @@ export default function App() {
             </section>
 
             {/* 5. PRICING SECTION IN GBP (£) */}
-            <section
-              id="pricing"
-              className="px-4 sm:px-6"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                paddingTop: 'var(--section-py)',
-                paddingBottom: 'var(--section-py)',
-                borderTop: '1px solid var(--color-border)',
-                borderBottom: '1px solid var(--color-border)',
-              }}
-            >
-              <div className="mx-auto" style={{ maxWidth: 'var(--max-width)' }}>
-                <h2
-                  className="text-2xl sm:text-3xl lg:text-[32px] font-bold leading-[1.2] mb-12 text-left"
-                  style={{
-                    fontFamily: 'var(--font-heading)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                >
-                  Priced like an advisor retainer. Built for the long runway.
-                </h2>
-
-                {/* 3 bordered cards */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch text-left">
-                  {/* Tier 1 — Readiness Starter */}
-                  <div
-                    className="p-6 sm:p-8 rounded-[6px] border flex flex-col justify-between"
-                    style={{
-                      backgroundColor: 'var(--color-background)',
-                      borderColor: 'var(--color-border)',
-                    }}
-                  >
-                    <div>
-                      <h3
-                        className="text-[20px] font-bold mb-2"
-                        style={{
-                          fontFamily: 'var(--font-heading)',
-                          color: 'var(--color-text-primary)',
-                        }}
-                      >
-                        Readiness Starter
-                      </h3>
-                      <div className="flex items-baseline gap-1 mb-4">
-                        <span
-                          className="text-3xl font-bold"
-                          style={{
-                            fontFamily: 'var(--font-heading)',
-                            color: 'var(--color-text-primary)',
-                          }}
-                        >
-                          Free
-                        </span>
-                        <span className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                          no card needed
-                        </span>
-                      </div>
-                      <p className="text-sm mb-6 font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                        Best for: practice principals 3–5 years out who want to know where their clinic stands.
-                      </p>
-
-                      <div className="pt-6 border-t space-y-3.5" style={{ borderColor: 'var(--color-border)' }}>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-text-primary)' }} />
-                          <span>Quarterly practice valuation re-score</span>
-                        </div>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-text-primary)' }} />
-                          <span>Full corporate-readiness scorecard</span>
-                        </div>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-text-primary)' }} />
-                          <span>Top-3 fix list with pound (£) impact</span>
-                        </div>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-text-primary)' }} />
-                          <span>Email support from dental M&amp;A analysts</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                      <button
-                        onClick={() => handleOpenCapture('Pricing Tier 1', 'Readiness Starter (Free)')}
-                        className="btn-secondary w-full"
-                      >
-                        Get my free valuation report
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Tier 2 — Exit Dashboard [Recommended] */}
-                  <div
-                    className="relative p-6 sm:p-8 rounded-[6px] flex flex-col justify-between"
-                    style={{
-                      backgroundColor: '#FFFFFF',
-                      border: '2px solid var(--color-accent)',
-                      boxShadow: 'var(--card-shadow-recommended)',
-                    }}
-                  >
-                    <div className="absolute -top-3 left-6">
-                      <span
-                        className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-[4px]"
-                        style={{
-                          backgroundColor: 'var(--color-accent)',
-                          color: 'var(--color-text-on-accent)',
-                        }}
-                      >
-                        Recommended
-                      </span>
-                    </div>
-
-                    <div>
-                      <h3
-                        className="text-[20px] font-bold mb-2 mt-2"
-                        style={{
-                          fontFamily: 'var(--font-heading)',
-                          color: 'var(--color-text-primary)',
-                        }}
-                      >
-                        Exit Dashboard
-                      </h3>
-                      <div className="flex items-baseline gap-1 mb-4">
-                        <span
-                          className="text-3xl font-bold"
-                          style={{
-                            fontFamily: 'var(--font-heading)',
-                            color: 'var(--color-text-primary)',
-                          }}
-                        >
-                          £99
-                        </span>
-                        <span className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                          / mo
-                        </span>
-                      </div>
-                      <p className="text-sm mb-6 font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                        Best for: principals planning to sell or take corporate equity within 2–3 years.
-                      </p>
-
-                      <div className="pt-6 border-t space-y-3.5" style={{ borderColor: 'var(--color-border)' }}>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-accent)' }} />
-                          <span className="font-medium">Monthly valuation re-score and score tracking over time</span>
-                        </div>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-accent)' }} />
-                          <span>Full fix-it plan — every clinical gap ranked by pound impact</span>
-                        </div>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-accent)' }} />
-                          <span>Printable report for your NASDAL accountant or advisor</span>
-                        </div>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-accent)' }} />
-                          <span>Priority support with a response inside one business day</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                      <button
-                        onClick={() => handleOpenCapture('Pricing Tier 2', 'Exit Dashboard (£99/mo)')}
-                        className="btn-primary w-full"
-                      >
-                        Get my free valuation report
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Tier 3 — Pre-Sale Sprint */}
-                  <div
-                    className="p-6 sm:p-8 rounded-[6px] border flex flex-col justify-between"
-                    style={{
-                      backgroundColor: 'var(--color-background)',
-                      borderColor: 'var(--color-border)',
-                    }}
-                  >
-                    <div>
-                      <h3
-                        className="text-[20px] font-bold mb-2"
-                        style={{
-                          fontFamily: 'var(--font-heading)',
-                          color: 'var(--color-text-primary)',
-                        }}
-                      >
-                        Pre-Sale Sprint
-                      </h3>
-                      <div className="flex items-baseline gap-1 mb-4">
-                        <span
-                          className="text-3xl font-bold"
-                          style={{
-                            fontFamily: 'var(--font-heading)',
-                            color: 'var(--color-text-primary)',
-                          }}
-                        >
-                          £15,000
-                        </span>
-                        <span className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                          one-time
-                        </span>
-                      </div>
-                      <p className="text-sm mb-6 font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                        Best for: principals within 12 months of going to market with dental brokers.
-                      </p>
-
-                      <div className="pt-6 border-t space-y-3.5" style={{ borderColor: 'var(--color-border)' }}>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-text-primary)' }} />
-                          <span>Everything in Exit Dashboard for 12 months</span>
-                        </div>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-text-primary)' }} />
-                          <span>Weekly one-on-one working sessions on your clinical and financial numbers</span>
-                        </div>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-text-primary)' }} />
-                          <span>Line-by-line review of associate contracts &amp; P&amp;L before any corporate sees them</span>
-                        </div>
-                        <div className="flex items-start gap-2.5 text-[15px]">
-                          <Check className="w-4 h-4 flex-shrink-0 mt-1" style={{ color: 'var(--color-text-primary)' }} />
-                          <span>Direct phone access through your due diligence and sale window</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                      <button
-                        onClick={() => handleOpenCapture('Pricing Tier 3', 'Pre-Sale Sprint (£15,000)')}
-                        className="btn-secondary w-full"
-                      >
-                        Get my free valuation report
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+            <PricingSection onOpenCapture={handleOpenCapture} />
 
             {/* 6. FAQ SECTION */}
             <section
@@ -1658,7 +1423,7 @@ export default function App() {
                         className="text-[18px] font-semibold leading-[1.35]"
                         style={{ color: 'var(--color-text-primary)' }}
                       >
-                        Is £99 a month worth it for a dental practice?
+                        Do I have to pay to use Valubuild?
                       </span>
                       <ChevronDown
                         className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${
@@ -1672,7 +1437,7 @@ export default function App() {
                         className="mt-3 text-[17px] leading-[1.6]"
                         style={{ color: 'var(--color-text-muted)' }}
                       >
-                        A single turn of EBITDA on a £350K-EBITDA dental clinic is £350,000. If following the fix list moves your practice multiple from 5.5x to 7.5x (or unlocks a cash sale instead of a 5-year earnout tie-in), the dashboard pays for itself hundreds of times over. And the initial valuation report is free before you decide.
+                        You don't have to pay anything to browse listings, valuations and trends, or to get a quick valuation. A full downloadable report is £149, and the Exit Dashboard at £99 a month only makes sense if you're working on your numbers over time. A single turn of EBITDA on a £350K-EBITDA dental clinic is £350,000, so if following the fix list moves your multiple from 5.5x to 7.5x (or unlocks a cash sale instead of a 5-year earnout), it pays for itself many times over.
                       </p>
                     )}
                   </div>
